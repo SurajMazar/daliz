@@ -13,6 +13,37 @@ Multi-tenant business management platform. **One tenant = one isolated PostgreSQ
    (own role, own DB)   (own role, own DB)     (own role, own DB) settings, branding, audit, …
 ```
 
+## Demo
+
+![Daliz product tour](docs/demo/daliz-demo.gif)
+
+▶️ **[Watch the narrated version (MP4, 1:21, with sound)](docs/demo/daliz-demo.mp4)**: a walkthrough of the dashboard, accounting and reports, daybook, planner, events, files, branding, dark mode and the Super Admin console.
+
+<table>
+  <tr>
+    <td><img src="docs/images/dashboard.png" alt="Tenant dashboard" /><br /><sub>Dashboard</sub></td>
+    <td><img src="docs/images/accounting.png" alt="Journal entries" /><br /><sub>Accounting: journal with approval workflow</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/reports.png" alt="Trial balance" /><br /><sub>Reports: trial balance from posted entries</sub></td>
+    <td><img src="docs/images/daybook.png" alt="Daybook" /><br /><sub>Daybook: everyday income and expenses</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/planner.png" alt="Planner board" /><br /><sub>Planner: project board</sub></td>
+    <td><img src="docs/images/event-drawer.png" alt="Recurring event" /><br /><sub>Events: recurring series, attendees and RSVPs</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/files.png" alt="Files library" /><br /><sub>Files: library with restricted folders</sub></td>
+    <td><img src="docs/images/branding.png" alt="Branding" /><br /><sub>Branding: logo variants and WCAG-checked theme</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/dashboard-dark.png" alt="Dark mode" /><br /><sub>Dark mode</sub></td>
+    <td><img src="docs/images/platform-tenant.png" alt="Super Admin tenant detail" /><br /><sub>Super Admin: tenant and database status</sub></td>
+  </tr>
+</table>
+
+<sub>Recorded against the local seed data (<code>pnpm db:seed</code>) with Playwright; narration generated with <a href="https://huggingface.co/hexgrad/Kokoro-82M">Kokoro-82M</a> (voice <code>af_heart</code>), mixed with ffmpeg.</sub>
+
 ## What's here today
 
 | Area | Status |
