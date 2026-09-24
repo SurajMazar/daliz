@@ -1,5 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { fromUnits, sumMoney, toUnits, type JournalEntryRow, type LedgerAccountRow } from '@daliz/shared';
+import {
+  fromUnits,
+  sumMoney,
+  toUnits,
+  type JournalEntryRow,
+  type LedgerAccountRow,
+} from '@daliz/shared';
 import { ArrowLeft, CircleCheck, Plus, Trash, TriangleAlert } from 'lucide-react';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -10,6 +16,7 @@ import { PageHeader } from '@/components/app/page-header';
 import { useBreadcrumbTail } from '@/components/layout/breadcrumbs';
 import { NoAccess } from '@/components/layout/guards';
 import { Alert } from '@/components/ui/alert';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
@@ -33,7 +40,13 @@ interface Line {
   credit: string;
 }
 
-const newLine = (): Line => ({ key: crypto.randomUUID(), accountId: null, description: '', debit: '', credit: '' });
+const newLine = (): Line => ({
+  key: crypto.randomUUID(),
+  accountId: null,
+  description: '',
+  debit: '',
+  credit: '',
+});
 
 export function EntryEditorPage() {
   const { id } = useParams();
@@ -52,19 +65,39 @@ export function EntryEditorPage() {
       </div>
     );
   }
-  if (accounts.isError) return <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />;
-  if (id && entry.isError) return <ErrorState error={entry.error} onRetry={() => void entry.refetch()} />;
+  if (accounts.isError)
+    return <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />;
+  if (id && entry.isError)
+    return <ErrorState error={entry.error} onRetry={() => void entry.refetch()} />;
   if (entry.data && !['draft', 'pending'].includes(entry.data.status)) {
     return (
       <Alert variant="warning" title="This entry can no longer be edited">
-        Only draft and pending entries can be changed. <Link to={`/accounting/entries/${entry.data.id}`} className="font-medium text-primary underline">Back to the entry</Link>
+        Only draft and pending entries can be changed.{' '}
+        <Link
+          to={`/accounting/entries/${entry.data.id}`}
+          className="font-medium text-primary underline"
+        >
+          Back to the entry
+        </Link>
       </Alert>
     );
   }
-  return <EntryEditor key={entry.data ? `${entry.data.id}:${entry.data.version}` : 'new'} entry={entry.data} accounts={accounts.data} />;
+  return (
+    <EntryEditor
+      key={entry.data ? `${entry.data.id}:${entry.data.version}` : 'new'}
+      entry={entry.data}
+      accounts={accounts.data}
+    />
+  );
 }
 
-function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; accounts: LedgerAccountRow[] }) {
+function EntryEditor({
+  entry,
+  accounts,
+}: {
+  entry: JournalEntryRow | undefined;
+  accounts: LedgerAccountRow[];
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fmt = useTenantFormat();
@@ -88,13 +121,23 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<ApiError | Error | null>(null);
   const [submitting, setSubmitting] = useState<null | 'save' | 'submit'>(null);
-  useUnsavedChanges(!submitting && (description.trim() !== (entry?.description ?? '') || lines.some((l) => l.accountId || l.debit || l.credit)) && !entry);
+  useUnsavedChanges(
+    !submitting &&
+      (description.trim() !== (entry?.description ?? '') ||
+        lines.some((l) => l.accountId || l.debit || l.credit)) &&
+      !entry,
+  );
 
   const options = useMemo(
     () =>
       accounts
         .filter((a) => a.isActive || lines.some((l) => l.accountId === a.id))
-        .map((a) => ({ value: a.id, label: accountLabel(a), group: humanize(a.type), keywords: a.subtype })),
+        .map((a) => ({
+          value: a.id,
+          label: accountLabel(a),
+          group: humanize(a.type),
+          keywords: a.subtype,
+        })),
     [accounts],
   );
 
@@ -104,7 +147,8 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
   const hasAmounts = toUnits(totalDebit) > 0n;
   const balanced = diff === 0n && hasAmounts;
 
-  const update = (key: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const update = (key: string, patch: Partial<Line>) =>
+    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const addLine = () => {
     setLines((ls) => [...ls, newLine()]);
     requestAnimationFrame(() => {
@@ -140,26 +184,46 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
       reference: reference.trim() || null,
       lines: lines
         .filter((l) => l.accountId)
-        .map((l) => ({ accountId: l.accountId!, description: l.description.trim(), debit: amountOrZero(l.debit), credit: amountOrZero(l.credit) })),
+        .map((l) => ({
+          accountId: l.accountId!,
+          description: l.description.trim(),
+          debit: amountOrZero(l.debit),
+          credit: amountOrZero(l.credit),
+        })),
     };
     setSubmitting(mode);
     try {
       let saved: JournalEntryRow;
       if (entry) {
-        saved = await api.put<JournalEntryRow>(`/accounting/journal-entries/${entry.id}`, { ...body, version: entry.version });
+        saved = await api.put<JournalEntryRow>(`/accounting/journal-entries/${entry.id}`, {
+          ...body,
+          version: entry.version,
+        });
       } else {
-        saved = await withIdempotency(idem, body, (key) => api.post<JournalEntryRow>('/accounting/journal-entries', body, { idempotencyKey: key }));
+        saved = await withIdempotency(idem, body, (key) =>
+          api.post<JournalEntryRow>('/accounting/journal-entries', body, { idempotencyKey: key }),
+        );
       }
       if (mode === 'submit' && saved.status === 'draft') {
-        saved = await api.post<JournalEntryRow>(`/accounting/journal-entries/${saved.id}/submit`, {});
+        saved = await api.post<JournalEntryRow>(
+          `/accounting/journal-entries/${saved.id}/submit`,
+          {},
+        );
       }
       qc.setQueryData(accountingKeys.entry(saved.id), saved);
       void qc.invalidateQueries({ queryKey: accountingKeys.entriesAll });
-      toast.success(mode === 'submit' ? 'Entry submitted for approval' : entry ? 'Entry saved' : 'Draft entry created');
+      toast.success(
+        mode === 'submit'
+          ? 'Entry submitted for approval'
+          : entry
+            ? 'Entry saved'
+            : 'Draft entry created',
+      );
       navigate(`/accounting/entries/${saved.id}`, { replace: !!entry });
     } catch (e) {
       setServerError(e instanceof Error ? e : new Error(errorMessage(e)));
-      if (e instanceof ApiError && e.code === 'VERSION_CONFLICT') void qc.invalidateQueries({ queryKey: accountingKeys.entry(entry?.id ?? '') });
+      if (e instanceof ApiError && e.code === 'VERSION_CONFLICT')
+        void qc.invalidateQueries({ queryKey: accountingKeys.entry(entry?.id ?? '') });
     } finally {
       setSubmitting(null);
     }
@@ -177,13 +241,26 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                 <ArrowLeft /> Cancel
               </Link>
             </Button>
-            <Button type="submit" variant="secondary" loading={submitting === 'save'} disabled={!balanced || submitting !== null}>
-              {entry ? 'Save changes' : 'Save draft'}
-            </Button>
-            {(!entry || entry.status === 'draft') && canWrite('accounting.create') ? (
-              <Button onClick={() => void submit(null, 'submit')} loading={submitting === 'submit'} disabled={!balanced || submitting !== null}>
-                Save and submit
+            <OnlineOnly>
+              <Button
+                type="submit"
+                variant="secondary"
+                loading={submitting === 'save'}
+                disabled={!balanced || submitting !== null}
+              >
+                {entry ? 'Save changes' : 'Save draft'}
               </Button>
+            </OnlineOnly>
+            {(!entry || entry.status === 'draft') && canWrite('accounting.create') ? (
+              <OnlineOnly>
+                <Button
+                  onClick={() => void submit(null, 'submit')}
+                  loading={submitting === 'submit'}
+                  disabled={!balanced || submitting !== null}
+                >
+                  Save and submit
+                </Button>
+              </OnlineOnly>
             ) : null}
           </>
         }
@@ -207,10 +284,21 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
               <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
             </FormField>
             <FormField label="Description" required error={errors.description}>
-              <Input value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Office rent for September" autoFocus={!entry} />
+              <Input
+                value={description}
+                maxLength={500}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Office rent for September"
+                autoFocus={!entry}
+              />
             </FormField>
             <FormField label="Reference">
-              <Input value={reference} maxLength={100} onChange={(e) => setReference(e.target.value)} placeholder="Invoice or receipt no." />
+              <Input
+                value={reference}
+                maxLength={100}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Invoice or receipt no."
+              />
             </FormField>
           </CardContent>
         </Card>
@@ -234,7 +322,9 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                 <tbody>
                   {lines.map((l, i) => (
                     <tr key={l.key} className="border-b align-top">
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground tabular-nums">{i + 1}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground tabular-nums">
+                        {i + 1}
+                      </td>
                       <td className="px-2 py-2">
                         <Combobox
                           className="line-account"
@@ -246,10 +336,19 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                           searchPlaceholder="Search by code or name…"
                           invalid={!!errors[`${l.key}.account`]}
                         />
-                        {errors[`${l.key}.account`] ? <p className="mt-1 text-xs text-destructive">{errors[`${l.key}.account`]}</p> : null}
+                        {errors[`${l.key}.account`] ? (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors[`${l.key}.account`]}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-2 py-2">
-                        <Input aria-label={`Description for line ${i + 1}`} value={l.description} maxLength={300} onChange={(e) => update(l.key, { description: e.target.value })} />
+                        <Input
+                          aria-label={`Description for line ${i + 1}`}
+                          value={l.description}
+                          maxLength={300}
+                          onChange={(e) => update(l.key, { description: e.target.value })}
+                        />
                       </td>
                       <td className="px-2 py-2">
                         <MoneyInput
@@ -257,9 +356,15 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                           aria-invalid={!!errors[`${l.key}.amount`] || undefined}
                           value={l.debit}
                           placeholder="0.00"
-                          onValueChange={(v) => update(l.key, { debit: v, credit: v ? '' : l.credit })}
+                          onValueChange={(v) =>
+                            update(l.key, { debit: v, credit: v ? '' : l.credit })
+                          }
                         />
-                        {errors[`${l.key}.amount`] ? <p className="mt-1 text-xs text-destructive">{errors[`${l.key}.amount`]}</p> : null}
+                        {errors[`${l.key}.amount`] ? (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors[`${l.key}.amount`]}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-2 py-2">
                         <MoneyInput
@@ -267,7 +372,9 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                           aria-invalid={!!errors[`${l.key}.amount`] || undefined}
                           value={l.credit}
                           placeholder="0.00"
-                          onValueChange={(v) => update(l.key, { credit: v, debit: v ? '' : l.debit })}
+                          onValueChange={(v) =>
+                            update(l.key, { credit: v, debit: v ? '' : l.debit })
+                          }
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && i === lines.length - 1) {
                               e.preventDefault();
@@ -299,8 +406,12 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
                       </Button>
                     </td>
                     <td className="px-2 py-3 text-right text-muted-foreground">Totals</td>
-                    <td className="px-2 py-3 text-right font-mono tabular-nums">{fmt.money(totalDebit)}</td>
-                    <td className="px-2 py-3 text-right font-mono tabular-nums">{fmt.money(totalCredit)}</td>
+                    <td className="px-2 py-3 text-right font-mono tabular-nums">
+                      {fmt.money(totalDebit)}
+                    </td>
+                    <td className="px-2 py-3 text-right font-mono tabular-nums">
+                      {fmt.money(totalCredit)}
+                    </td>
                     <td />
                   </tr>
                 </tfoot>
@@ -309,20 +420,30 @@ function EntryEditor({ entry, accounts }: { entry: JournalEntryRow | undefined; 
             <div
               className={cn(
                 'mx-5 mt-2 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium sm:mx-6',
-                balanced ? 'border-success/30 bg-success/5 text-success' : 'border-warning/30 bg-warning/5 text-warning',
+                balanced
+                  ? 'border-success/30 bg-success/5 text-success'
+                  : 'border-warning/30 bg-warning/5 text-warning',
               )}
               role="status"
               aria-live="polite"
             >
-              {balanced ? <CircleCheck className="size-4" aria-hidden /> : <TriangleAlert className="size-4" aria-hidden />}
+              {balanced ? (
+                <CircleCheck className="size-4" aria-hidden />
+              ) : (
+                <TriangleAlert className="size-4" aria-hidden />
+              )}
               {balanced
                 ? `Balanced — ${fmt.money(totalDebit)}`
                 : !hasAmounts
                   ? 'Enter amounts to balance the entry'
                   : `Out of balance by ${fmt.money(fromUnits(diff < 0n ? -diff : diff))} (${diff > 0n ? 'more debits' : 'more credits'})`}
             </div>
-            {errors.lines ? <p className="mx-5 mt-2 text-sm text-destructive sm:mx-6">{errors.lines}</p> : null}
-            <p className="mx-5 mt-2 text-xs text-muted-foreground sm:mx-6">Tip: press Enter in the last credit cell to add a line.</p>
+            {errors.lines ? (
+              <p className="mx-5 mt-2 text-sm text-destructive sm:mx-6">{errors.lines}</p>
+            ) : null}
+            <p className="mx-5 mt-2 text-xs text-muted-foreground sm:mx-6">
+              Tip: press Enter in the last credit cell to add a line.
+            </p>
           </CardContent>
         </Card>
       </div>

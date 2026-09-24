@@ -1,5 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { TASK_PRIORITIES, TASK_STATUS_LABELS, type ActivityRow, type CommentRow, type LabelRow, type TaskDetail, type TaskRow } from '@daliz/shared';
+import {
+  TASK_PRIORITIES,
+  TASK_STATUS_LABELS,
+  type ActivityRow,
+  type CommentRow,
+  type LabelRow,
+  type TaskDetail,
+  type TaskRow,
+} from '@daliz/shared';
 import { Check, MessageSquare, Paperclip, Pencil, Plus, Tag, Trash, X } from 'lucide-react';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -25,16 +33,48 @@ import { useIdempotencyKey, withIdempotency } from '@/lib/idempotency';
 import { useAccess } from '@/lib/session';
 import { ago, cn, formatDateTime, humanize } from '@/lib/utils';
 import { plannerKeys, useActivity, useComments, useLabels, usePeople, useTask } from './api';
-import { PRIORITY_LABELS, QuickAddTask, STATUS_ORDER, useTaskCache, useUpdateTask } from './task-bits';
+import { isOfflineId, postComment } from './offline';
+import { RemindMe } from './remind-me';
+import {
+  PRIORITY_LABELS,
+  QuickAddTask,
+  STATUS_ORDER,
+  useTaskCache,
+  useUpdateTask,
+} from './task-bits';
 
-const LABEL_COLORS = ['#2753d7', '#0f766e', '#b91c1c', '#9a5b00', '#7c3aed', '#be185d', '#15803d', '#475569'];
+const LABEL_COLORS = [
+  '#2753d7',
+  '#0f766e',
+  '#b91c1c',
+  '#9a5b00',
+  '#7c3aed',
+  '#be185d',
+  '#15803d',
+  '#475569',
+];
 
-export function TaskDrawer({ taskId, onClose, onOpenTask }: { taskId: string | null; onClose: () => void; onOpenTask: (id: string) => void }) {
+export function TaskDrawer({
+  taskId,
+  onClose,
+  onOpenTask,
+}: {
+  taskId: string | null;
+  onClose: () => void;
+  onOpenTask: (id: string) => void;
+}) {
   const task = useTask(taskId);
   return (
     <Sheet open={!!taskId} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full max-w-2xl sm:w-[640px]">
-        {task.isPending ? (
+        {taskId && isOfflineId(taskId) ? (
+          <div className="grid gap-2 p-6">
+            <SheetTitle className="text-lg font-semibold">Waiting to sync</SheetTitle>
+            <SheetDescription>
+              This task was created offline. It opens here once it has been saved to the server.
+            </SheetDescription>
+          </div>
+        ) : task.isPending ? (
           <div className="grid gap-4 p-6">
             <SheetTitle className="sr-only">Loading task</SheetTitle>
             <SheetDescription className="sr-only">Loading</SheetDescription>
@@ -56,7 +96,13 @@ export function TaskDrawer({ taskId, onClose, onOpenTask }: { taskId: string | n
   );
 }
 
-function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (id: string) => void }) {
+function TaskDetailBody({
+  task,
+  onOpenTask,
+}: {
+  task: TaskDetail;
+  onOpenTask: (id: string) => void;
+}) {
   const { canWrite, can } = useAccess();
   const qc = useQueryClient();
   const update = useUpdateTask();
@@ -75,8 +121,15 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
     },
   });
 
-  const peopleOptions = (people.data ?? []).map((p) => ({ value: p.id, label: p.name, keywords: p.email }));
-  const hours = task.estimateMinutes === null ? '' : String(Math.round((task.estimateMinutes / 60) * 100) / 100);
+  const peopleOptions = (people.data ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+    keywords: p.email,
+  }));
+  const hours =
+    task.estimateMinutes === null
+      ? ''
+      : String(Math.round((task.estimateMinutes / 60) * 100) / 100);
 
   return (
     <div className="flex h-full flex-col">
@@ -86,7 +139,11 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
           <span aria-hidden>·</span>
           <span>{task.projectName}</span>
           {task.parentTaskId ? (
-            <Button variant="link" className="h-auto text-xs" onClick={() => onOpenTask(task.parentTaskId!)}>
+            <Button
+              variant="link"
+              className="h-auto text-xs"
+              onClick={() => onOpenTask(task.parentTaskId!)}
+            >
               Open parent task
             </Button>
           ) : null}
@@ -115,7 +172,13 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
       <div className="flex-1 overflow-y-auto p-5">
         <dl className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm">
           <Field label="Status" id="task-status">
-            <NativeSelect id="task-status" className="h-8" value={task.status} disabled={!editable} onChange={(e) => set({ status: e.target.value })}>
+            <NativeSelect
+              id="task-status"
+              className="h-8"
+              value={task.status}
+              disabled={!editable}
+              onChange={(e) => set({ status: e.target.value })}
+            >
               {STATUS_ORDER.map((s) => (
                 <option key={s} value={s}>
                   {TASK_STATUS_LABELS[s]}
@@ -124,10 +187,26 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
             </NativeSelect>
           </Field>
           <Field label="Assignee" id="task-assignee">
-            <Combobox id="task-assignee" className="h-8" options={peopleOptions} value={task.assignee?.id ?? null} onChange={(v) => set({ assigneeId: v })} placeholder="Unassigned" allowClear disabled={!editable} searchPlaceholder="Search people…" />
+            <Combobox
+              id="task-assignee"
+              className="h-8"
+              options={peopleOptions}
+              value={task.assignee?.id ?? null}
+              onChange={(v) => set({ assigneeId: v })}
+              placeholder="Unassigned"
+              allowClear
+              disabled={!editable}
+              searchPlaceholder="Search people…"
+            />
           </Field>
           <Field label="Priority" id="task-priority">
-            <NativeSelect id="task-priority" className="h-8" value={task.priority} disabled={!editable} onChange={(e) => set({ priority: e.target.value })}>
+            <NativeSelect
+              id="task-priority"
+              className="h-8"
+              value={task.priority}
+              disabled={!editable}
+              onChange={(e) => set({ priority: e.target.value })}
+            >
               {TASK_PRIORITIES.map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABELS[p]}
@@ -137,9 +216,26 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
           </Field>
           <Field label="Dates" id="task-start">
             <div className="flex items-center gap-2">
-              <Input id="task-start" aria-label="Start date" type="date" className="h-8" value={task.startDate ?? ''} max={task.dueDate ?? undefined} disabled={!editable} onChange={(e) => set({ startDate: e.target.value || null })} />
+              <Input
+                id="task-start"
+                aria-label="Start date"
+                type="date"
+                className="h-8"
+                value={task.startDate ?? ''}
+                max={task.dueDate ?? undefined}
+                disabled={!editable}
+                onChange={(e) => set({ startDate: e.target.value || null })}
+              />
               <span className="text-muted-foreground">→</span>
-              <Input aria-label="Due date" type="date" className="h-8" value={task.dueDate ?? ''} min={task.startDate ?? undefined} disabled={!editable} onChange={(e) => set({ dueDate: e.target.value || null })} />
+              <Input
+                aria-label="Due date"
+                type="date"
+                className="h-8"
+                value={task.dueDate ?? ''}
+                min={task.startDate ?? undefined}
+                disabled={!editable}
+                onChange={(e) => set({ dueDate: e.target.value || null })}
+              />
             </div>
           </Field>
           <Field label="Estimate" id="task-estimate">
@@ -156,14 +252,22 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
                 onBlur={(e) => {
                   const v = e.target.value.trim();
                   const minutes = v === '' ? null : Math.round(Number(v) * 60);
-                  if (minutes !== task.estimateMinutes && (minutes === null || (Number.isFinite(minutes) && minutes >= 0))) set({ estimateMinutes: minutes });
+                  if (
+                    minutes !== task.estimateMinutes &&
+                    (minutes === null || (Number.isFinite(minutes) && minutes >= 0))
+                  )
+                    set({ estimateMinutes: minutes });
                 }}
               />
               <span className="text-muted-foreground">hours</span>
             </div>
           </Field>
           <Field label="Labels" id="task-labels">
-            <LabelsEditor task={task} editable={editable} onChange={(ids) => set({ labelIds: ids })} />
+            <LabelsEditor
+              task={task}
+              editable={editable}
+              onChange={(ids) => set({ labelIds: ids })}
+            />
           </Field>
           <dt className="text-muted-foreground">Reporter</dt>
           <dd className="text-sm">{task.reporter?.name ?? '—'}</dd>
@@ -171,7 +275,14 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
 
         <section className="mt-6 grid gap-2">
           <Label htmlFor="task-description">Description</Label>
-          <Textarea id="task-description" rows={5} value={description} readOnly={!editable} onChange={(e) => setDescription(e.target.value)} placeholder={editable ? 'Add more detail…' : 'No description'} />
+          <Textarea
+            id="task-description"
+            rows={5}
+            value={description}
+            readOnly={!editable}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={editable ? 'Add more detail…' : 'No description'}
+          />
           {editable && description !== task.description ? (
             <div className="flex gap-2">
               <Button size="sm" onClick={() => set({ description })} loading={update.isPending}>
@@ -184,7 +295,9 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
           ) : null}
         </section>
 
-        {!task.parentTaskId ? <Subtasks task={task} onOpenTask={onOpenTask} editable={editable} /> : null}
+        {!task.parentTaskId ? (
+          <Subtasks task={task} onOpenTask={onOpenTask} editable={editable} />
+        ) : null}
         <Attachments task={task} editable={editable && can('files.read')} />
 
         <Tabs defaultValue="comments" className="mt-6">
@@ -204,14 +317,23 @@ function TaskDetailBody({ task, onOpenTask }: { task: TaskDetail; onOpenTask: (i
       </div>
       <footer className="flex items-center justify-between gap-2 border-t px-5 py-3 text-xs text-muted-foreground">
         <span>
-          Created {ago(task.createdAt)} · updated <time title={formatDateTime(task.updatedAt)}>{ago(task.updatedAt)}</time>
+          Created {ago(task.createdAt)} · updated{' '}
+          <time title={formatDateTime(task.updatedAt)}>{ago(task.updatedAt)}</time>
           {task.completedAt ? ` · completed ${ago(task.completedAt)}` : ''}
         </span>
-        {task.canEdit && canWrite('planner.delete') ? (
-          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-            <Trash /> Delete
-          </Button>
-        ) : null}
+        <span className="flex shrink-0 items-center gap-1">
+          {can('events.read') ? <RemindMe task={task} /> : null}
+          {task.canEdit && canWrite('planner.delete') ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash /> Delete
+            </Button>
+          ) : null}
+        </span>
       </footer>
       <ConfirmDialog
         open={confirmDelete}
@@ -244,14 +366,26 @@ function Field({ label, id, children }: { label: string; id: string; children: R
   );
 }
 
-function LabelsEditor({ task, editable, onChange }: { task: TaskDetail; editable: boolean; onChange: (ids: string[]) => void }) {
+function LabelsEditor({
+  task,
+  editable,
+  onChange,
+}: {
+  task: TaskDetail;
+  editable: boolean;
+  onChange: (ids: string[]) => void;
+}) {
   const { canWrite } = useAccess();
   const labels = useLabels();
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const selected = new Set(task.labels.map((l) => l.id));
   const create = useMutation({
-    mutationFn: (n: string) => api.post<LabelRow>('/planner/labels', { name: n, color: LABEL_COLORS[(labels.data?.length ?? 0) % LABEL_COLORS.length] }),
+    mutationFn: (n: string) =>
+      api.post<LabelRow>('/planner/labels', {
+        name: n,
+        color: LABEL_COLORS[(labels.data?.length ?? 0) % LABEL_COLORS.length],
+      }),
     onSuccess: (label) => {
       void qc.invalidateQueries({ queryKey: plannerKeys.labels });
       setName('');
@@ -265,7 +399,12 @@ function LabelsEditor({ task, editable, onChange }: { task: TaskDetail; editable
           <span className="size-2 rounded-full" style={{ backgroundColor: l.color }} aria-hidden />
           {l.name}
           {editable ? (
-            <button type="button" aria-label={`Remove label ${l.name}`} className="ml-0.5 rounded hover:text-destructive" onClick={() => onChange([...selected].filter((id) => id !== l.id))}>
+            <button
+              type="button"
+              aria-label={`Remove label ${l.name}`}
+              className="ml-0.5 rounded hover:text-destructive"
+              onClick={() => onChange([...selected].filter((id) => id !== l.id))}
+            >
               <X className="size-3" aria-hidden />
             </button>
           ) : null}
@@ -282,9 +421,25 @@ function LabelsEditor({ task, editable, onChange }: { task: TaskDetail; editable
             <div className="max-h-56 overflow-y-auto" role="group" aria-label="Labels">
               {labels.data?.length ? (
                 labels.data.map((l) => (
-                  <label key={l.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
-                    <Checkbox checked={selected.has(l.id)} onCheckedChange={(c) => onChange(c === true ? [...selected, l.id] : [...selected].filter((id) => id !== l.id))} />
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: l.color }} aria-hidden />
+                  <label
+                    key={l.id}
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <Checkbox
+                      checked={selected.has(l.id)}
+                      onCheckedChange={(c) =>
+                        onChange(
+                          c === true
+                            ? [...selected, l.id]
+                            : [...selected].filter((id) => id !== l.id),
+                        )
+                      }
+                    />
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ backgroundColor: l.color }}
+                      aria-hidden
+                    />
                     {l.name}
                   </label>
                 ))
@@ -300,8 +455,21 @@ function LabelsEditor({ task, editable, onChange }: { task: TaskDetail; editable
                   if (name.trim()) create.mutate(name.trim());
                 }}
               >
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New label" aria-label="New label name" maxLength={40} className="h-8" />
-                <Button type="submit" size="icon-sm" aria-label="Create label" disabled={!name.trim()} loading={create.isPending}>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="New label"
+                  aria-label="New label name"
+                  maxLength={40}
+                  className="h-8"
+                />
+                <Button
+                  type="submit"
+                  size="icon-sm"
+                  aria-label="Create label"
+                  disabled={!name.trim()}
+                  loading={create.isPending}
+                >
                   <Plus />
                 </Button>
               </form>
@@ -315,7 +483,15 @@ function LabelsEditor({ task, editable, onChange }: { task: TaskDetail; editable
   );
 }
 
-function Subtasks({ task, onOpenTask, editable }: { task: TaskDetail; onOpenTask: (id: string) => void; editable: boolean }) {
+function Subtasks({
+  task,
+  onOpenTask,
+  editable,
+}: {
+  task: TaskDetail;
+  onOpenTask: (id: string) => void;
+  editable: boolean;
+}) {
   const { canWrite } = useAccess();
   const update = useUpdateTask();
   const qc = useQueryClient();
@@ -342,7 +518,14 @@ function Subtasks({ task, onOpenTask, editable }: { task: TaskDetail; onOpenTask
                 onCheckedChange={() => toggle(s)}
                 aria-label={`Mark ${s.title} ${s.status === 'done' ? 'not done' : 'done'}`}
               />
-              <button type="button" className={cn('flex-1 truncate text-left text-sm hover:underline', s.status === 'done' && 'text-muted-foreground line-through')} onClick={() => onOpenTask(s.id)}>
+              <button
+                type="button"
+                className={cn(
+                  'flex-1 truncate text-left text-sm hover:underline',
+                  s.status === 'done' && 'text-muted-foreground line-through',
+                )}
+                onClick={() => onOpenTask(s.id)}
+              >
                 {s.title}
               </button>
               <span className="font-mono text-[10px] text-muted-foreground">{s.key}</span>
@@ -350,7 +533,13 @@ function Subtasks({ task, onOpenTask, editable }: { task: TaskDetail; onOpenTask
           ))}
         </ul>
       ) : null}
-      {editable && canWrite('planner.create') ? <QuickAddTask projectId={task.projectId} defaults={{ parentTaskId: task.id }} placeholder="Add a subtask…" /> : null}
+      {editable && canWrite('planner.create') ? (
+        <QuickAddTask
+          projectId={task.projectId}
+          defaults={{ parentTaskId: task.id }}
+          placeholder="Add a subtask…"
+        />
+      ) : null}
     </section>
   );
 }
@@ -370,7 +559,8 @@ function Attachments({ task, editable }: { task: TaskDetail; editable: boolean }
     <section className="mt-6 grid gap-2" aria-labelledby="attachments-heading">
       <div className="flex items-center justify-between">
         <h3 id="attachments-heading" className="text-sm font-medium">
-          Attachments <span className="font-normal text-muted-foreground">{task.attachments.length}</span>
+          Attachments{' '}
+          <span className="font-normal text-muted-foreground">{task.attachments.length}</span>
         </h3>
         {editable ? (
           <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>
@@ -383,12 +573,24 @@ function Attachments({ task, editable }: { task: TaskDetail; editable: boolean }
           {task.attachments.map((a) => (
             <li key={a.fileId} className="flex items-center gap-2 px-3 py-2 text-sm">
               <Paperclip className="size-4 text-muted-foreground" aria-hidden />
-              <button type="button" className="flex-1 truncate text-left hover:underline" onClick={() => void downloadFile(a.fileId).catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <button
+                type="button"
+                className="flex-1 truncate text-left hover:underline"
+                onClick={() =>
+                  void downloadFile(a.fileId).catch((e: unknown) => toast.error(errorMessage(e)))
+                }
+              >
                 {a.name}
               </button>
               <span className="text-xs text-muted-foreground">{formatBytes(a.sizeBytes)}</span>
               {editable ? (
-                <Button variant="ghost" size="icon-sm" aria-label={`Remove ${a.name}`} onClick={() => remove.mutate(a.fileId)} disabled={remove.isPending}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${a.name}`}
+                  onClick={() => remove.mutate(a.fileId)}
+                  disabled={remove.isPending}
+                >
                   <X />
                 </Button>
               ) : null}
@@ -404,7 +606,9 @@ function Attachments({ task, editable }: { task: TaskDetail; editable: boolean }
           onClose={() => setPicking(false)}
           onPick={async (file) => {
             try {
-              const updated = await api.post<TaskDetail>(`/planner/tasks/${task.id}/attachments`, { fileId: file.id });
+              const updated = await api.post<TaskDetail>(`/planner/tasks/${task.id}/attachments`, {
+                fileId: file.id,
+              });
               qc.setQueryData(plannerKeys.task(task.id), updated);
               write(updated);
               toast.success(`Attached ${file.name}`);
@@ -437,9 +641,16 @@ function Comments({ taskId }: { taskId: string }) {
     if (!text) return;
     setPosting(true);
     try {
-      const rows = await withIdempotency(idem, { taskId, body: text }, (key) => api.post<CommentRow[]>(`/planner/tasks/${taskId}/comments`, { body: text }, { idempotencyKey: key }));
-      setList(rows);
+      const res = await withIdempotency(idem, { taskId, body: text }, (key) =>
+        postComment(taskId, text, key),
+      );
       setBody('');
+      if (res.queued)
+        toast('Comment saved offline', {
+          id: 'offline-saved',
+          description: 'It will be posted when you’re back online.',
+        });
+      else setList(res.result);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -451,7 +662,8 @@ function Comments({ taskId }: { taskId: string }) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: plannerKeys.comments(taskId) }),
   });
   const save = useMutation({
-    mutationFn: (c: { id: string; body: string }) => api.patch<CommentRow[]>(`/planner/tasks/${taskId}/comments/${c.id}`, { body: c.body }),
+    mutationFn: (c: { id: string; body: string }) =>
+      api.patch<CommentRow[]>(`/planner/tasks/${taskId}/comments/${c.id}`, { body: c.body }),
     onSuccess: (rows) => {
       setList(rows);
       setEditing(null);
@@ -495,16 +707,35 @@ function Comments({ taskId }: { taskId: string }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="font-medium">{c.author?.name ?? 'Former member'}</span>
-                  <time className="text-xs text-muted-foreground" dateTime={c.createdAt} title={formatDateTime(c.createdAt)}>
+                  <time
+                    className="text-xs text-muted-foreground"
+                    dateTime={c.createdAt}
+                    title={formatDateTime(c.createdAt)}
+                  >
                     {ago(c.createdAt)}
                   </time>
-                  {c.editedAt ? <span className="text-xs text-muted-foreground">(edited)</span> : null}
+                  {c.editedAt ? (
+                    <span className="text-xs text-muted-foreground">(edited)</span>
+                  ) : null}
                   {c.mine && editing?.id !== c.id ? (
                     <span className="ml-auto flex gap-1">
-                      <Button variant="ghost" size="icon-sm" className="size-7" aria-label="Edit comment" onClick={() => setEditing({ id: c.id, body: c.body })}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-7"
+                        aria-label="Edit comment"
+                        onClick={() => setEditing({ id: c.id, body: c.body })}
+                      >
                         <Pencil className="size-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" className="size-7" aria-label="Delete comment" onClick={() => del.mutate(c.id)} disabled={del.isPending}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-7"
+                        aria-label="Delete comment"
+                        onClick={() => del.mutate(c.id)}
+                        disabled={del.isPending}
+                      >
                         <Trash className="size-3.5" />
                       </Button>
                     </span>
@@ -512,9 +743,20 @@ function Comments({ taskId }: { taskId: string }) {
                 </div>
                 {editing?.id === c.id ? (
                   <div className="mt-1 grid gap-2">
-                    <Textarea rows={3} aria-label="Edit comment" value={editing.body} onChange={(e) => setEditing({ id: c.id, body: e.target.value })} autoFocus />
+                    <Textarea
+                      rows={3}
+                      aria-label="Edit comment"
+                      value={editing.body}
+                      onChange={(e) => setEditing({ id: c.id, body: e.target.value })}
+                      autoFocus
+                    />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => save.mutate(editing)} loading={save.isPending} disabled={!editing.body.trim()}>
+                      <Button
+                        size="sm"
+                        onClick={() => save.mutate(editing)}
+                        loading={save.isPending}
+                        disabled={!editing.body.trim()}
+                      >
                         <Check /> Save
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
@@ -547,7 +789,11 @@ function describeActivity(a: ActivityRow): string {
       const others = Object.keys(changes).filter((k) => k !== 'status');
       const parts = [
         ...(status ? [`moved it to ${TASK_STATUS_LABELS[status] ?? String(status)}`] : []),
-        ...(others.length ? [`changed ${others.map((f) => humanize(f.replace(/Id$/, '')).toLowerCase()).join(', ')}`] : []),
+        ...(others.length
+          ? [
+              `changed ${others.map((f) => humanize(f.replace(/Id$/, '')).toLowerCase()).join(', ')}`,
+            ]
+          : []),
       ];
       return parts.length ? parts.join(' and ') : 'updated the task';
     }
@@ -564,15 +810,23 @@ function Activity({ taskId }: { taskId: string }) {
   const activity = useActivity(taskId);
   if (activity.isPending) return <Skeleton className="h-16" />;
   if (activity.isError) return <ErrorState error={activity.error} className="py-4" />;
-  if (activity.data.length === 0) return <p className="text-sm text-muted-foreground">No activity yet.</p>;
+  if (activity.data.length === 0)
+    return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   return (
     <ol className="grid gap-3">
       {activity.data.map((a) => (
         <li key={a.id} className="flex items-start gap-2 text-sm">
-          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/60" aria-hidden />
+          <span
+            className="mt-1.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/60"
+            aria-hidden
+          />
           <p className="min-w-0 flex-1">
             <span className="font-medium">{a.actor?.name ?? 'System'}</span> {describeActivity(a)}{' '}
-            <time className="text-xs text-muted-foreground" dateTime={a.createdAt} title={formatDateTime(a.createdAt)}>
+            <time
+              className="text-xs text-muted-foreground"
+              dateTime={a.createdAt}
+              title={formatDateTime(a.createdAt)}
+            >
               {ago(a.createdAt)}
             </time>
           </p>
@@ -581,4 +835,3 @@ function Activity({ taskId }: { taskId: string }) {
     </ol>
   );
 }
-

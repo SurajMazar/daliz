@@ -1,7 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspaceInputSchema, type WorkspaceRow } from '@daliz/shared';
-import { Archive, Ellipsis, FolderKanban, Lock, Pencil, Plus, Trash, UserPlus, Users } from 'lucide-react';
+import {
+  Archive,
+  Ellipsis,
+  FolderKanban,
+  Lock,
+  Pencil,
+  Plus,
+  Trash,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, Navigate, useSearchParams } from 'react-router';
@@ -17,8 +27,21 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ColorInput } from '@/components/ui/color-input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
@@ -54,7 +77,10 @@ function PlannerHome() {
   const [members, setMembers] = useState<WorkspaceRow | null>(null);
   const [archiving, setArchiving] = useState<WorkspaceRow | null>(null);
   const qc = useQueryClient();
-  const archive = useMutation({ mutationFn: (id: string) => api.delete(`/planner/workspaces/${id}`), onSuccess: () => void qc.invalidateQueries({ queryKey: plannerKeys.all }) });
+  const archive = useMutation({
+    mutationFn: (id: string) => api.delete(`/planner/workspaces/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: plannerKeys.all }),
+  });
 
   return (
     <>
@@ -100,7 +126,10 @@ function PlannerHome() {
             <li key={w.id}>
               <Card className="relative flex h-full flex-col overflow-hidden transition-colors hover:border-primary/40">
                 <span className="h-1.5 w-full" style={{ backgroundColor: w.color }} aria-hidden />
-                <Link to={`/planner/w/${w.id}`} className="flex flex-1 flex-col gap-2 p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+                <Link
+                  to={`/planner/w/${w.id}`}
+                  className="flex flex-1 flex-col gap-2 p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
                   <div className="flex items-center gap-2 pr-8">
                     <h2 className="truncate font-semibold">{w.name}</h2>
                     {w.visibility === 'private' ? (
@@ -109,7 +138,9 @@ function PlannerHome() {
                       </Badge>
                     ) : null}
                   </div>
-                  {w.description ? <p className="line-clamp-2 text-sm text-muted-foreground">{w.description}</p> : null}
+                  {w.description ? (
+                    <p className="line-clamp-2 text-sm text-muted-foreground">{w.description}</p>
+                  ) : null}
                   <div className="mt-auto flex gap-4 pt-2 text-xs text-muted-foreground">
                     <span>
                       {w.projectCount} project{w.projectCount === 1 ? '' : 's'}
@@ -118,13 +149,23 @@ function PlannerHome() {
                     {w.myRole ? <span className="capitalize">{w.myRole}</span> : null}
                   </div>
                 </Link>
-                <WorkspaceMenu workspace={w} onEdit={() => setEditing(w)} onMembers={() => setMembers(w)} onArchive={() => setArchiving(w)} />
+                <WorkspaceMenu
+                  workspace={w}
+                  onEdit={() => setEditing(w)}
+                  onMembers={() => setMembers(w)}
+                  onArchive={() => setArchiving(w)}
+                />
               </Card>
             </li>
           ))}
         </ul>
       )}
-      {editing ? <WorkspaceDialog workspace={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} /> : null}
+      {editing ? (
+        <WorkspaceDialog
+          workspace={editing === 'new' ? undefined : editing}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
       {members ? <MembersDialog workspace={members} onClose={() => setMembers(null)} /> : null}
       <ConfirmDialog
         open={!!archiving}
@@ -143,7 +184,17 @@ function PlannerHome() {
   );
 }
 
-export function WorkspaceMenu({ workspace, onEdit, onMembers, onArchive }: { workspace: WorkspaceRow; onEdit: () => void; onMembers: () => void; onArchive: () => void }) {
+export function WorkspaceMenu({
+  workspace,
+  onEdit,
+  onMembers,
+  onArchive,
+}: {
+  workspace: WorkspaceRow;
+  onEdit: () => void;
+  onMembers: () => void;
+  onArchive: () => void;
+}) {
   const { canWrite } = useAccess();
   const manage = workspace.myRole === 'owner' || canWrite('planner.delete');
   const items = {
@@ -187,7 +238,13 @@ export function WorkspaceMenu({ workspace, onEdit, onMembers, onArchive }: { wor
 
 type WsValues = z.input<typeof workspaceInputSchema>;
 
-export function WorkspaceDialog({ workspace, onClose }: { workspace: WorkspaceRow | undefined; onClose: () => void }) {
+export function WorkspaceDialog({
+  workspace,
+  onClose,
+}: {
+  workspace: WorkspaceRow | undefined;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<WsValues, unknown, z.output<typeof workspaceInputSchema>>({
@@ -202,13 +259,22 @@ export function WorkspaceDialog({ workspace, onClose }: { workspace: WorkspaceRo
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
     try {
-      if (workspace) await api.patch(`/planner/workspaces/${workspace.id}`, { ...v, version: workspace.version });
+      if (workspace)
+        await api.patch(`/planner/workspaces/${workspace.id}`, {
+          ...v,
+          version: workspace.version,
+        });
       else await api.post('/planner/workspaces', v);
       void qc.invalidateQueries({ queryKey: plannerKeys.workspaces });
       toast.success(workspace ? 'Workspace updated' : 'Workspace created');
       onClose();
     } catch (e) {
-      if (!applyServerErrors(e, form.setError, ['name', 'description', 'color', 'visibility'], { toastUnmatched: false })) setError(errorMessage(e));
+      if (
+        !applyServerErrors(e, form.setError, ['name', 'description', 'color', 'visibility'], {
+          toastUnmatched: false,
+        })
+      )
+        setError(errorMessage(e));
     }
   });
   return (
@@ -226,17 +292,36 @@ export function WorkspaceDialog({ workspace, onClose }: { workspace: WorkspaceRo
             <Textarea rows={2} maxLength={1000} {...form.register('description')} />
           </FormField>
           <FormField label="Color" error={form.formState.errors.color?.message}>
-            <Controlled control={form.control} name="color" render={(field, props) => <ColorInput id={props.id as string} label="Workspace color" value={field.value ?? '#2753d7'} onChange={field.onChange} />} />
+            <Controlled
+              control={form.control}
+              name="color"
+              render={(field, props) => (
+                <ColorInput
+                  id={props.id as string}
+                  label="Workspace color"
+                  value={field.value ?? '#2753d7'}
+                  onChange={field.onChange}
+                />
+              )}
+            />
           </FormField>
           <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
             <div className="grid gap-1">
               <Label htmlFor="ws-private">Private workspace</Label>
-              <p className="text-sm text-muted-foreground">Only members you add can see its projects and tasks.</p>
+              <p className="text-sm text-muted-foreground">
+                Only members you add can see its projects and tasks.
+              </p>
             </div>
             <Controller
               control={form.control}
               name="visibility"
-              render={({ field }) => <Switch id="ws-private" checked={field.value === 'private'} onCheckedChange={(c) => field.onChange(c ? 'private' : 'workspace')} />}
+              render={({ field }) => (
+                <Switch
+                  id="ws-private"
+                  checked={field.value === 'private'}
+                  onCheckedChange={(c) => field.onChange(c ? 'private' : 'workspace')}
+                />
+              )}
             />
           </div>
           <DialogFooter>
@@ -253,7 +338,13 @@ export function WorkspaceDialog({ workspace, onClose }: { workspace: WorkspaceRo
   );
 }
 
-export function MembersDialog({ workspace, onClose }: { workspace: WorkspaceRow; onClose: () => void }) {
+export function MembersDialog({
+  workspace,
+  onClose,
+}: {
+  workspace: WorkspaceRow;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const members = useMembers(workspace.id);
   const people = usePeople();
@@ -275,7 +366,9 @@ export function MembersDialog({ workspace, onClose }: { workspace: WorkspaceRow;
     }
     setSaving(true);
     try {
-      await api.put(`/planner/workspaces/${workspace.id}/members`, { members: list.map((m) => ({ userId: m.userId, role: m.role })) });
+      await api.put(`/planner/workspaces/${workspace.id}/members`, {
+        members: list.map((m) => ({ userId: m.userId, role: m.role })),
+      });
       void qc.invalidateQueries({ queryKey: plannerKeys.members(workspace.id) });
       void qc.invalidateQueries({ queryKey: plannerKeys.workspaces });
       toast.success('Members updated');
@@ -292,12 +385,19 @@ export function MembersDialog({ workspace, onClose }: { workspace: WorkspaceRow;
         <DialogHeader>
           <DialogTitle>Members of {workspace.name}</DialogTitle>
           <DialogDescription>
-            {workspace.visibility === 'private' ? 'Only these people can see this workspace.' : 'Everyone can see this workspace; members get the role you choose.'}
+            {workspace.visibility === 'private'
+              ? 'Only these people can see this workspace.'
+              : 'Everyone can see this workspace; members get the role you choose.'}
           </DialogDescription>
         </DialogHeader>
         {error ? <Alert variant="destructive" title={error} /> : null}
         <div className="flex gap-2">
-          <NativeSelect aria-label="Person to add" value={adding} onChange={(e) => setAdding(e.target.value)} disabled={people.isPending}>
+          <NativeSelect
+            aria-label="Person to add"
+            value={adding}
+            onChange={(e) => setAdding(e.target.value)}
+            disabled={people.isPending}
+          >
             <option value="">{people.isPending ? 'Loading people…' : 'Add a person…'}</option>
             {available.map((p) => (
               <option key={p.id} value={p.id}>
@@ -338,13 +438,26 @@ export function MembersDialog({ workspace, onClose }: { workspace: WorkspaceRow;
                     aria-label={`Role for ${m.name}`}
                     className="h-8 w-28 text-xs"
                     value={m.role}
-                    onChange={(e) => setDraft(list.map((x) => (x.userId === m.userId ? { ...x, role: e.target.value as MemberRow['role'] } : x)))}
+                    onChange={(e) =>
+                      setDraft(
+                        list.map((x) =>
+                          x.userId === m.userId
+                            ? { ...x, role: e.target.value as MemberRow['role'] }
+                            : x,
+                        ),
+                      )
+                    }
                   >
                     <option value="owner">Owner</option>
                     <option value="editor">Editor</option>
                     <option value="viewer">Viewer</option>
                   </NativeSelect>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Remove ${m.name}`} onClick={() => setDraft(list.filter((x) => x.userId !== m.userId))}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Remove ${m.name}`}
+                    onClick={() => setDraft(list.filter((x) => x.userId !== m.userId))}
+                  >
                     <Trash />
                   </Button>
                 </li>

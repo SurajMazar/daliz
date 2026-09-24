@@ -6,6 +6,7 @@ import { api, isApiError, setCsrfToken } from './api';
 import { setAppState } from './app-state';
 import { navigateTo } from './navigation';
 import { queryClient } from './query-client';
+import { clearOfflineData, setOfflineScope } from '@/offline/db';
 
 export const ME_KEY = ['me'] as const;
 
@@ -27,7 +28,12 @@ export async function fetchMe(): Promise<MeResponse | null> {
 }
 
 export function useMe() {
-  return useQuery({ queryKey: ME_KEY, queryFn: fetchMe, staleTime: 60_000, refetchOnWindowFocus: true });
+  return useQuery({
+    queryKey: ME_KEY,
+    queryFn: fetchMe,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 /** Refetches /auth/me and returns the fresh value. */
@@ -71,6 +77,13 @@ export function useAccess(): Access {
 
 function afterSignOut(message?: string) {
   setCsrfToken(null);
+  // Offline cache and queue belong to the signed-out user; never leave them on the device.
+  void clearOfflineData();
+  try {
+    sessionStorage.removeItem('daliz.locked');
+  } catch {
+    // ignore
+  }
   queryClient.clear();
   queryClient.setQueryData(ME_KEY, null);
   navigateTo('/login', { replace: true });
@@ -87,7 +100,8 @@ export function useSignOut() {
 export function useSignOutEverywhere() {
   return useMutation({
     mutationFn: () => api.post<{ revoked: number }>('/auth/logout-all'),
-    onSuccess: (r) => afterSignOut(`Signed out of ${r.revoked} session${r.revoked === 1 ? '' : 's'}.`),
+    onSuccess: (r) =>
+      afterSignOut(`Signed out of ${r.revoked} session${r.revoked === 1 ? '' : 's'}.`),
   });
 }
 
@@ -98,6 +112,8 @@ export function useSwitchWorkspace() {
     mutationFn: (tenantId: string) => api.post<{ ok: true }>('/auth/tenant', { tenantId }),
     onSuccess: async () => {
       qc.removeQueries({ predicate: (q) => q.queryKey[0] !== ME_KEY[0] });
+      // The next tenant shell sets its own scope; drop this workspace's offline data now.
+      await setOfflineScope(null);
       await refreshMe();
       navigateTo('/', { replace: true });
     },

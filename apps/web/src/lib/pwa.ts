@@ -5,7 +5,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
-import { capabilities } from '@/platform';
+import { capabilities, getPlatform } from '@/platform';
 import { navigateTo } from './navigation';
 import { hasUnsavedChanges } from './unsaved';
 
@@ -36,12 +36,19 @@ function promptUpdate(worker: ServiceWorker) {
     action: {
       label: 'Reload',
       onClick: () => {
-        if (hasUnsavedChanges() && !window.confirm('You have unsaved changes. Reload and lose them?')) {
+        if (
+          hasUnsavedChanges() &&
+          !window.confirm('You have unsaved changes. Reload and lose them?')
+        ) {
           updateShown = false;
           return;
         }
         // Reload only after the user asked for it, once the new worker has taken over.
-        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+        navigator.serviceWorker.addEventListener(
+          'controllerchange',
+          () => window.location.reload(),
+          { once: true },
+        );
         worker.postMessage({ type: 'SKIP_WAITING' });
       },
     },
@@ -65,10 +72,19 @@ function watchForUpdates(reg: ServiceWorkerRegistration) {
 
 export function registerServiceWorker(): void {
   if (!capabilities.supportsServiceWorker) return;
-  navigator.serviceWorker.addEventListener('message', (e: MessageEvent<{ type?: string; link?: string }>) => {
-    const link = e.data?.link;
-    if (e.data?.type === 'NAVIGATE' && typeof link === 'string' && link.startsWith('/') && !link.startsWith('//')) navigateTo(link);
-  });
+  navigator.serviceWorker.addEventListener(
+    'message',
+    (e: MessageEvent<{ type?: string; link?: string }>) => {
+      const link = e.data?.link;
+      if (
+        e.data?.type === 'NAVIGATE' &&
+        typeof link === 'string' &&
+        link.startsWith('/') &&
+        !link.startsWith('//')
+      )
+        navigateTo(link);
+    },
+  );
   if (import.meta.env.PROD) {
     if (document.readyState === 'complete') void ensureServiceWorker();
     else window.addEventListener('load', () => void ensureServiceWorker(), { once: true });
@@ -107,7 +123,7 @@ export function useInstallPrompt(): { available: boolean; install: () => Promise
       installListeners.add(fn);
       return () => installListeners.delete(fn);
     },
-    () => deferred !== null,
+    () => deferred !== null && getPlatform() === 'WEB',
   );
   return {
     available,

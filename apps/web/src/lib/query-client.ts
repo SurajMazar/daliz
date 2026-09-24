@@ -33,22 +33,31 @@ export const queryClient = new QueryClient({
       if (isApiError(error) && GLOBALLY_HANDLED.has(error.code)) return;
       // A dismissed step-up dialog leaves STEP_UP_REQUIRED; say what happened.
       if (isApiError(error) && error.code === 'STEP_UP_REQUIRED') {
-        toast.error('Action cancelled', { description: 'You need to confirm your identity to do that.' });
+        toast.error('Action cancelled', {
+          description: 'You need to confirm your identity to do that.',
+        });
         return;
       }
-      const details = isApiError(error) && error.details.length ? error.details.map((d) => d.message).join(' · ') : undefined;
+      const details =
+        isApiError(error) && error.details.length
+          ? error.details.map((d) => d.message).join(' · ')
+          : undefined;
       toast.error(errorMessage(error), details ? { description: details } : undefined);
     },
   }),
   defaultOptions: {
     queries: {
+      // Run once even when offline so cachedQuery can answer from IndexedDB; retries pause.
+      networkMode: 'offlineFirst',
       staleTime: 15_000,
       refetchOnWindowFocus: false,
       retry: (failureCount, error) => {
-        if (isApiError(error)) return (error.status === 0 || error.status >= 500) && failureCount < 2;
+        if (isApiError(error))
+          return (error.status === 0 || error.status >= 500) && failureCount < 2;
         return failureCount < 2;
       },
     },
-    mutations: { retry: false },
+    // Mutations never silently pause offline: they fail fast (or queue, where allowed).
+    mutations: { retry: false, networkMode: 'always' },
   },
 });

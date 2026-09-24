@@ -27,7 +27,10 @@ async function write(key: string, scope: string, data: unknown) {
  * IndexedDB under the current tenant/user scope; when offline (or the network fails) the
  * last stored copy is returned instead.
  */
-export async function cachedQuery<T>(queryKey: readonly unknown[], fn: () => Promise<T>): Promise<T> {
+export async function cachedQuery<T>(
+  queryKey: readonly unknown[],
+  fn: () => Promise<T>,
+): Promise<T> {
   const scope = getOfflineScope();
   if (!scope) return fn();
   const key = `${scope}|${JSON.stringify(queryKey)}`;

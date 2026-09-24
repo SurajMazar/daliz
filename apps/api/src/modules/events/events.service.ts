@@ -66,7 +66,7 @@ export class EventsService {
   // Reading
   // -------------------------------------------------------------------------
 
-  async occurrences(from: Date, to: Date, mine: boolean): Promise<EventOccurrenceRow[]> {
+  async occurrences(from: Date, to: Date, mine: boolean, includeCancelled = false): Promise<EventOccurrenceRow[]> {
     const ctx = RequestContext.tenant();
     const me = uid(ctx);
     const rows = await ctx.db
@@ -103,7 +103,7 @@ export class EventsService {
       const occs = expandOccurrences({ startsAt: e.startsAt, endsAt: e.endsAt, timezone: e.timezone, rrule: e.rrule }, new Date(from.getTime() - 14 * 86400_000), new Date(to.getTime() + 14 * 86400_000));
       for (const o of occs) {
         const ex = exFor.find((x) => x.occurrenceStart.getTime() === o.start.getTime());
-        if (ex?.cancelled) continue;
+        if (ex?.cancelled && !includeCancelled) continue;
         const start = ex?.startsAt ?? o.start;
         const end = ex?.endsAt ?? o.end;
         if (!(start < to && end > from)) continue;
@@ -114,7 +114,7 @@ export class EventsService {
           description: e.description,
           location: e.location,
           kind: e.kind,
-          status: e.status,
+          status: ex?.cancelled ? 'cancelled' : e.status,
           start: start.toISOString(),
           end: end.toISOString(),
           occurrenceStart: o.start.toISOString(),
@@ -210,7 +210,7 @@ export class EventsService {
     }
     await this.audit.tenantEvent({ action: 'events.created', resourceType: 'event', resourceId: id, metadata: { title: input.title, recurring: !!input.rrule, attendees: attendeeIds.length } });
     if (attendeeIds.length) {
-      this.events.emit('event.invited', { tenantId: ctx.tenantId, eventId: id, title: input.title, startsAt: input.startsAt.toISOString(), attendeeIds, actorId: me });
+      this.events.emit('event.invited', { tenantId: ctx.tenantId, eventId: id, title: input.title, startsAt: input.startsAt.toISOString(), timezone: input.timezone, allDay: input.allDay, attendeeIds, actorId: me });
     }
     this.events.emit('realtime.invalidate', { tenantId: ctx.tenantId, userIds: 'all', topics: ['events'] });
     return this.get(id);
@@ -297,10 +297,10 @@ export class EventsService {
     await this.audit.tenantEvent({ action: patch.status === 'cancelled' ? 'events.cancelled' : 'events.updated', resourceType: 'event', resourceId: id, metadata: { fields: Object.keys(fields) } });
     const notifyIds = detail.attendees.map((a) => a.id).filter((a) => a !== me);
     const invited = newAttendees ? newAttendees.filter((a) => !attendees.some((x) => x.id === a)) : [];
-    if (invited.length) this.events.emit('event.invited', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: detail.startsAt, attendeeIds: invited, actorId: me });
+    if (invited.length) this.events.emit('event.invited', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: detail.startsAt, timezone: detail.timezone, allDay: detail.allDay, attendeeIds: invited, actorId: me });
     const others = notifyIds.filter((a) => !invited.includes(a));
     if (others.length && (patch.status === 'cancelled' || timingChanged || patch.location !== undefined)) {
-      this.events.emit(patch.status === 'cancelled' ? 'event.cancelled' : 'event.updated', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: detail.startsAt, attendeeIds: others, actorId: me });
+      this.events.emit(patch.status === 'cancelled' ? 'event.cancelled' : 'event.updated', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: detail.startsAt, timezone: detail.timezone, allDay: detail.allDay, attendeeIds: others, actorId: me });
     }
     this.events.emit('realtime.invalidate', { tenantId: ctx.tenantId, userIds: 'all', topics: ['events'] });
     return detail;
@@ -328,7 +328,7 @@ export class EventsService {
     const me = uid(ctx);
     const attendeeIds = detail.attendees.map((a) => a.id).filter((a) => a !== me);
     if (attendeeIds.length) {
-      this.events.emit(change.cancelled ? 'event.cancelled' : 'event.updated', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: change.occurrenceStart.toISOString(), attendeeIds, actorId: me });
+      this.events.emit(change.cancelled ? 'event.cancelled' : 'event.updated', { tenantId: ctx.tenantId, eventId: id, title: detail.title, startsAt: (change.startsAt ?? change.occurrenceStart).toISOString(), timezone: detail.timezone, allDay: detail.allDay, attendeeIds, actorId: me });
     }
     this.events.emit('realtime.invalidate', { tenantId: ctx.tenantId, userIds: 'all', topics: ['events'] });
     return detail;

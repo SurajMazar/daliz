@@ -6,7 +6,10 @@ export interface RouteHandle {
   crumb?: string;
 }
 
-const TailContext = createContext<{ tail: string | null; setTail: (t: string | null) => void } | null>(null);
+const TailContext = createContext<{
+  tail: string | null;
+  setTail: (t: string | null) => void;
+} | null>(null);
 
 export function BreadcrumbProvider({ children }: { children: ReactNode }) {
   const [tail, setTail] = useState<string | null>(null);
@@ -30,7 +33,8 @@ export function RouteBreadcrumbs({ root }: { root: Crumb }) {
   const crumbs: Crumb[] = [root];
   for (const m of matches) {
     const handle = m.handle as RouteHandle | undefined;
-    if (handle?.crumb && m.pathname !== root.to) crumbs.push({ label: handle.crumb, to: m.pathname });
+    if (handle?.crumb && m.pathname !== root.to)
+      crumbs.push({ label: handle.crumb, to: m.pathname });
   }
   if (ctx?.tail) crumbs.push({ label: ctx.tail });
   return <Breadcrumb items={crumbs} />;

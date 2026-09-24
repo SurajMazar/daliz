@@ -27,20 +27,29 @@ import { formatDateTimeIn, fromLocalInput, toLocalInput } from './tz';
 type Channel = ReminderRow['channel'];
 
 /** Creates a reminder, or queues it when offline (reminders are offline-safe). */
-export async function createReminder(body: { title: string; notes?: string; remindAt: string; channel: Channel; taskId?: string | null }, key: string): Promise<'sent' | 'queued'> {
+export async function createReminder(
+  body: {
+    title: string;
+    notes?: string;
+    remindAt: string;
+    channel: Channel;
+    taskId?: string | null;
+  },
+  key: string,
+): Promise<'sent' | 'queued'> {
   const run = async () => {
     await api.post<ReminderRow>('/reminders', body, { idempotencyKey: key });
     return 'sent' as const;
   };
   if (isOffline()) {
-    await enqueue('reminder.create', { body }, `Reminder: ${body.title}`);
+    await enqueue('reminder.create', { body }, `Reminder: ${body.title}`, key);
     return 'queued';
   }
   try {
     return await run();
   } catch (e) {
     if (isNetworkError(e)) {
-      await enqueue('reminder.create', { body }, `Reminder: ${body.title}`);
+      await enqueue('reminder.create', { body }, `Reminder: ${body.title}`, key);
       return 'queued';
     }
     throw e;
@@ -53,7 +62,9 @@ export function RemindersPanel() {
   const reminders = useReminders();
   const idem = useIdempotencyKey();
   const [title, setTitle] = useState('');
-  const [when, setWhen] = useState(() => toLocalInput(new Date(Date.now() + 3_600_000), fmt.timezone));
+  const [when, setWhen] = useState(() =>
+    toLocalInput(new Date(Date.now() + 3_600_000), fmt.timezone),
+  );
   const [notes, setNotes] = useState('');
   const [channel, setChannel] = useState<Channel>('in_app');
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +84,11 @@ export function RemindersPanel() {
     const body = { title: title.trim(), notes, remindAt: at.toISOString(), channel };
     try {
       const result = await withIdempotency(idem, body, (key) => createReminder(body, key));
-      toast.success(result === 'queued' ? 'Reminder saved offline — it will sync when you’re back online' : 'Reminder set');
+      toast.success(
+        result === 'queued'
+          ? 'Reminder saved offline — it will sync when you’re back online'
+          : 'Reminder set',
+      );
       setTitle('');
       setNotes('');
       void qc.invalidateQueries({ queryKey: eventsKeys.reminders });
@@ -98,7 +113,12 @@ export function RemindersPanel() {
           <form onSubmit={submit} className="grid gap-4" noValidate>
             {error ? <Alert variant="destructive" title={error} /> : null}
             <FormField label="Title" required>
-              <Input maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Call the bank" />
+              <Input
+                maxLength={200}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Call the bank"
+              />
             </FormField>
             <FormField label="Remind me at" required>
               <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
@@ -111,7 +131,12 @@ export function RemindersPanel() {
               </NativeSelect>
             </FormField>
             <FormField label="Notes">
-              <Textarea rows={2} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              <Textarea
+                rows={2}
+                maxLength={2000}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </FormField>
             <Button type="submit" loading={saving}>
               <Plus /> Add reminder
@@ -137,8 +162,20 @@ export function RemindersPanel() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                     {r.title}
-                    {r.status !== 'scheduled' ? <Badge variant="muted">{r.status === 'sent' ? 'Sent' : r.status === 'dismissed' ? 'Dismissed' : 'Cancelled'}</Badge> : null}
-                    {r.channel !== 'in_app' ? <Badge variant="outline">{r.channel === 'email' ? 'Email' : 'App + email'}</Badge> : null}
+                    {r.status !== 'scheduled' ? (
+                      <Badge variant="muted">
+                        {r.status === 'sent'
+                          ? 'Sent'
+                          : r.status === 'dismissed'
+                            ? 'Dismissed'
+                            : 'Cancelled'}
+                      </Badge>
+                    ) : null}
+                    {r.channel !== 'in_app' ? (
+                      <Badge variant="outline">
+                        {r.channel === 'email' ? 'Email' : 'App + email'}
+                      </Badge>
+                    ) : null}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {formatDateTimeIn(r.remindAt, fmt.timezone, fmt.locale)}
@@ -147,19 +184,30 @@ export function RemindersPanel() {
                   {r.notes ? <p className="mt-1 text-sm text-muted-foreground">{r.notes}</p> : null}
                   <div className="mt-1 flex gap-3 text-xs">
                     {r.eventId ? (
-                      <Link className="text-primary hover:underline" to={`/events?event=${r.eventId}`}>
+                      <Link
+                        className="text-primary hover:underline"
+                        to={`/events?event=${r.eventId}`}
+                      >
                         Open event
                       </Link>
                     ) : null}
                     {r.taskId ? (
-                      <Link className="text-primary hover:underline" to={`/planner?task=${r.taskId}`}>
+                      <Link
+                        className="text-primary hover:underline"
+                        to={`/planner?task=${r.taskId}`}
+                      >
                         Open task
                       </Link>
                     ) : null}
                   </div>
                 </div>
                 {r.status === 'scheduled' ? (
-                  <Button variant="ghost" size="sm" onClick={() => dismiss.mutate(r.id)} loading={dismiss.isPending && dismiss.variables === r.id}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => dismiss.mutate(r.id)}
+                    loading={dismiss.isPending && dismiss.variables === r.id}
+                  >
                     <BellOff /> Dismiss
                   </Button>
                 ) : null}

@@ -1,7 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reverseJournalEntrySchema, sumMoney, type JournalEntryRow } from '@daliz/shared';
-import { ArrowLeft, CircleCheck, Circle, Pencil, Printer, Send, Stamp, Trash, Undo2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CircleCheck,
+  Circle,
+  Pencil,
+  Printer,
+  Send,
+  Stamp,
+  Trash,
+  Undo2,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -12,14 +22,29 @@ import { PageHeader } from '@/components/app/page-header';
 import { useBreadcrumbTail } from '@/components/layout/breadcrumbs';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { api, errorMessage } from '@/lib/api';
 import { formatIsoDate } from '@/lib/dates';
@@ -71,7 +96,13 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
   const transition = useMutation({
     mutationFn: async (kind: 'submit' | 'approve' | 'post') => {
       if (kind === 'post') {
-        return withIdempotency(postIdem, { id: entry.id, kind }, (key) => api.post<JournalEntryRow>(`/accounting/journal-entries/${entry.id}/post`, {}, { idempotencyKey: key }));
+        return withIdempotency(postIdem, { id: entry.id, kind }, (key) =>
+          api.post<JournalEntryRow>(
+            `/accounting/journal-entries/${entry.id}/post`,
+            {},
+            { idempotencyKey: key },
+          ),
+        );
       }
       return api.post<JournalEntryRow>(`/accounting/journal-entries/${entry.id}/${kind}`);
     },
@@ -79,14 +110,22 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
     onMutate: () => setActionError(null),
     onSuccess: (updated, kind) => {
       refresh(updated);
-      toast.success(kind === 'submit' ? 'Submitted for approval' : kind === 'approve' ? 'Entry approved' : `Posted as ${updated.number}`);
+      toast.success(
+        kind === 'submit'
+          ? 'Submitted for approval'
+          : kind === 'approve'
+            ? 'Entry approved'
+            : `Posted as ${updated.number}`,
+      );
     },
     onError: (e) => {
       setActionError(errorMessage(e));
       void qc.invalidateQueries({ queryKey: accountingKeys.entry(entry.id) });
     },
   });
-  const remove = useMutation({ mutationFn: () => api.delete(`/accounting/journal-entries/${entry.id}`) });
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/accounting/journal-entries/${entry.id}`),
+  });
 
   const s = entry.status;
   const requireApproval = settings.data?.requireApproval ?? true;
@@ -97,7 +136,11 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
     post: canWrite('accounting.approve') && (s === 'approved' || (!requireApproval && editable)),
     edit: editable && canWrite('accounting.update'),
     delete: editable && canWrite('accounting.delete'),
-    reverse: s === 'posted' && entry.source !== 'reversal' && !entry.reversedById && canWrite('accounting.approve'),
+    reverse:
+      s === 'posted' &&
+      entry.source !== 'reversal' &&
+      !entry.reversedById &&
+      canWrite('accounting.approve'),
   };
   const lines = entry.lines ?? [];
   const totalDebit = sumMoney(lines.map((l) => l.debit));
@@ -133,29 +176,51 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
               </Button>
             ) : null}
             {can.delete ? (
-              <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setAction('delete')}>
-                <Trash /> Delete
-              </Button>
+              <OnlineOnly>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setAction('delete')}
+                >
+                  <Trash /> Delete
+                </Button>
+              </OnlineOnly>
             ) : null}
             {can.submit ? (
-              <Button variant={can.post ? 'outline' : 'default'} onClick={() => transition.mutate('submit')} loading={transition.isPending && transition.variables === 'submit'}>
-                <Send /> Submit
-              </Button>
+              <OnlineOnly>
+                <Button
+                  variant={can.post ? 'outline' : 'default'}
+                  onClick={() => transition.mutate('submit')}
+                  loading={transition.isPending && transition.variables === 'submit'}
+                >
+                  <Send /> Submit
+                </Button>
+              </OnlineOnly>
             ) : null}
             {can.approve ? (
-              <Button onClick={() => transition.mutate('approve')} loading={transition.isPending && transition.variables === 'approve'} disabled={!!sod}>
-                <CircleCheck /> Approve
-              </Button>
+              <OnlineOnly>
+                <Button
+                  onClick={() => transition.mutate('approve')}
+                  loading={transition.isPending && transition.variables === 'approve'}
+                  disabled={!!sod}
+                >
+                  <CircleCheck /> Approve
+                </Button>
+              </OnlineOnly>
             ) : null}
             {can.post ? (
-              <Button onClick={() => setAction('post')}>
-                <Stamp /> Post
-              </Button>
+              <OnlineOnly>
+                <Button onClick={() => setAction('post')}>
+                  <Stamp /> Post
+                </Button>
+              </OnlineOnly>
             ) : null}
             {can.reverse ? (
-              <Button variant="outline" onClick={() => setAction('reverse')}>
-                <Undo2 /> Reverse
-              </Button>
+              <OnlineOnly>
+                <Button variant="outline" onClick={() => setAction('reverse')}>
+                  <Undo2 /> Reverse
+                </Button>
+              </OnlineOnly>
             ) : null}
           </div>
         }
@@ -172,7 +237,10 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
         ) : null}
         {entry.reversalOfId ? (
           <Alert variant="info" title="This entry reverses another entry">
-            <Link to={`/accounting/entries/${entry.reversalOfId}`} className="font-medium text-primary underline">
+            <Link
+              to={`/accounting/entries/${entry.reversalOfId}`}
+              className="font-medium text-primary underline"
+            >
               View the original entry
             </Link>
           </Alert>
@@ -180,7 +248,10 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
         {entry.reversedById ? (
           <Alert variant="warning" title="This entry has been reversed">
             {entry.reversalReason ? <p>Reason: {entry.reversalReason}</p> : null}
-            <Link to={`/accounting/entries/${entry.reversedById}`} className="font-medium text-primary underline">
+            <Link
+              to={`/accounting/entries/${entry.reversedById}`}
+              className="font-medium text-primary underline"
+            >
               View the reversing entry
             </Link>
           </Alert>
@@ -190,7 +261,9 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
           <Card>
             <CardHeader>
               <CardTitle>{entry.description}</CardTitle>
-              {entry.reference ? <p className="text-sm text-muted-foreground">Reference: {entry.reference}</p> : null}
+              {entry.reference ? (
+                <p className="text-sm text-muted-foreground">Reference: {entry.reference}</p>
+              ) : null}
             </CardHeader>
             <CardContent className="px-0 sm:px-0">
               <Table>
@@ -206,21 +279,36 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
                 <TableBody>
                   {lines.map((l) => (
                     <TableRow key={l.id}>
-                      <TableCell className="text-xs text-muted-foreground tabular-nums">{l.lineNo}</TableCell>
-                      <TableCell>
-                        <span className="font-mono text-xs text-muted-foreground">{l.accountCode}</span> {l.accountName}
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
+                        {l.lineNo}
                       </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{l.description || '—'}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{isZeroish(l.debit) ? '' : fmt.money(l.debit)}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{isZeroish(l.credit) ? '' : fmt.money(l.credit)}</TableCell>
+                      <TableCell>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {l.accountCode}
+                        </span>{' '}
+                        {l.accountName}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {l.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {isZeroish(l.debit) ? '' : fmt.money(l.debit)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {isZeroish(l.credit) ? '' : fmt.money(l.credit)}
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-semibold hover:bg-transparent">
                     <TableCell />
                     <TableCell>Total</TableCell>
                     <TableCell className="hidden md:table-cell" />
-                    <TableCell className="text-right font-mono tabular-nums">{fmt.money(totalDebit)}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{fmt.money(totalCredit)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {fmt.money(totalDebit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {fmt.money(totalCredit)}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -232,16 +320,45 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
             </CardHeader>
             <CardContent>
               <ol className="grid gap-4">
-                <Step done label="Created" who={entry.createdBy?.name} when={formatDateTime(entry.createdAt)} />
+                <Step
+                  done
+                  label="Created"
+                  who={entry.createdBy?.name}
+                  when={formatDateTime(entry.createdAt)}
+                />
                 <Step
                   done={s !== 'draft'}
                   label="Submitted for approval"
                   who={entry.submittedBy?.name}
-                  when={entry.submittedAt ? formatDateTime(entry.submittedAt) : s === 'draft' ? 'Not yet' : undefined}
+                  when={
+                    entry.submittedAt
+                      ? formatDateTime(entry.submittedAt)
+                      : s === 'draft'
+                        ? 'Not yet'
+                        : undefined
+                  }
                 />
-                <Step done={!!entry.approvedBy} label="Approved" who={entry.approvedBy?.name} when={entry.approvedAt ? formatDateTime(entry.approvedAt) : entry.approvedBy ? undefined : 'Not yet'} />
-                <Step done={!!entry.postedAt} label={entry.number ? `Posted as ${entry.number}` : 'Posted'} who={entry.postedBy?.name} when={entry.postedAt ? formatDateTime(entry.postedAt) : 'Not yet'} />
-                {entry.reversedById ? <Step done label="Reversed" when={entry.reversalReason ?? ''} /> : null}
+                <Step
+                  done={!!entry.approvedBy}
+                  label="Approved"
+                  who={entry.approvedBy?.name}
+                  when={
+                    entry.approvedAt
+                      ? formatDateTime(entry.approvedAt)
+                      : entry.approvedBy
+                        ? undefined
+                        : 'Not yet'
+                  }
+                />
+                <Step
+                  done={!!entry.postedAt}
+                  label={entry.number ? `Posted as ${entry.number}` : 'Posted'}
+                  who={entry.postedBy?.name}
+                  when={entry.postedAt ? formatDateTime(entry.postedAt) : 'Not yet'}
+                />
+                {entry.reversedById ? (
+                  <Step done label="Reversed" when={entry.reversalReason ?? ''} />
+                ) : null}
               </ol>
             </CardContent>
           </Card>
@@ -270,7 +387,16 @@ function EntryDetail({ entry }: { entry: JournalEntryRow }) {
           navigate('/accounting', { replace: true });
         }}
       />
-      {action === 'reverse' ? <ReverseDialog entry={entry} onClose={() => setAction(null)} onDone={(rev) => { refresh(); navigate(`/accounting/entries/${rev.id}`); }} /> : null}
+      {action === 'reverse' ? (
+        <ReverseDialog
+          entry={entry}
+          onClose={() => setAction(null)}
+          onDone={(rev) => {
+            refresh();
+            navigate(`/accounting/entries/${rev.id}`);
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -279,10 +405,24 @@ function isZeroish(v: string): boolean {
   return /^0+(\.0+)?$/.test(v);
 }
 
-function Step({ done, label, who, when }: { done: boolean; label: string; who?: string | null; when?: ReactNode }) {
+function Step({
+  done,
+  label,
+  who,
+  when,
+}: {
+  done: boolean;
+  label: string;
+  who?: string | null;
+  when?: ReactNode;
+}) {
   return (
     <li className="flex gap-3">
-      {done ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-label="Done" /> : <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/60" aria-label="Pending" />}
+      {done ? (
+        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-label="Done" />
+      ) : (
+        <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/60" aria-label="Pending" />
+      )}
       <div className="min-w-0 text-sm">
         <div className={cn('font-medium', !done && 'text-muted-foreground')}>{label}</div>
         {who || when ? (
@@ -299,7 +439,15 @@ function Step({ done, label, who, when }: { done: boolean; label: string; who?: 
 
 type ReverseValues = z.infer<typeof reverseJournalEntrySchema>;
 
-function ReverseDialog({ entry, onClose, onDone }: { entry: JournalEntryRow; onClose: () => void; onDone: (reversal: JournalEntryRow) => void }) {
+function ReverseDialog({
+  entry,
+  onClose,
+  onDone,
+}: {
+  entry: JournalEntryRow;
+  onClose: () => void;
+  onDone: (reversal: JournalEntryRow) => void;
+}) {
   const fmt = useTenantFormat();
   const idem = useIdempotencyKey();
   const today = fmt.today();
@@ -311,12 +459,17 @@ function ReverseDialog({ entry, onClose, onDone }: { entry: JournalEntryRow; onC
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
     try {
-      const rev = await withIdempotency(idem, { id: entry.id, ...v }, (key) => api.post<JournalEntryRow>(`/accounting/journal-entries/${entry.id}/reverse`, v, { idempotencyKey: key }));
+      const rev = await withIdempotency(idem, { id: entry.id, ...v }, (key) =>
+        api.post<JournalEntryRow>(`/accounting/journal-entries/${entry.id}/reverse`, v, {
+          idempotencyKey: key,
+        }),
+      );
       toast.success(`Reversed with ${rev.number ?? 'a new entry'}`);
       onClose();
       onDone(rev);
     } catch (e) {
-      if (!applyServerErrors(e, form.setError, ['entryDate', 'reason'], { toastUnmatched: false })) setError(errorMessage(e));
+      if (!applyServerErrors(e, form.setError, ['entryDate', 'reason'], { toastUnmatched: false }))
+        setError(errorMessage(e));
     }
   });
   return (
@@ -325,10 +478,18 @@ function ReverseDialog({ entry, onClose, onDone }: { entry: JournalEntryRow; onC
         <form onSubmit={onSubmit} className="grid gap-5" noValidate>
           <DialogHeader>
             <DialogTitle>Reverse {entry.number}</DialogTitle>
-            <DialogDescription>A mirror-image entry is posted on the date you choose. The original stays in the ledger.</DialogDescription>
+            <DialogDescription>
+              A mirror-image entry is posted on the date you choose. The original stays in the
+              ledger.
+            </DialogDescription>
           </DialogHeader>
           {error ? <Alert variant="destructive" title={error} /> : null}
-          <FormField label="Reversal date" required error={form.formState.errors.entryDate?.message} hint={`Can’t be before ${formatIsoDate(entry.entryDate, undefined, fmt.locale)}.`}>
+          <FormField
+            label="Reversal date"
+            required
+            error={form.formState.errors.entryDate?.message}
+            hint={`Can’t be before ${formatIsoDate(entry.entryDate, undefined, fmt.locale)}.`}
+          >
             <Input type="date" min={entry.entryDate} {...form.register('entryDate')} />
           </FormField>
           <FormField label="Reason" required error={form.formState.errors.reason?.message}>

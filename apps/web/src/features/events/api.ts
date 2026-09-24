@@ -16,7 +16,7 @@ export function useOccurrences(from: Date, to: Date, mine: boolean) {
   const key = eventsKeys.range(f, t, mine);
   return useQuery({
     queryKey: key,
-    queryFn: () => cachedQuery(key, () => api.get<EventOccurrenceRow[]>('/events', { from: f, to: t, mine: mine ? 'true' : undefined })),
+    queryFn: () => cachedQuery(key, () => api.get<EventOccurrenceRow[]>('/events', { from: f, to: t, mine: mine ? 'true' : undefined, includeCancelled: 'true' })),
     placeholderData: (prev) => prev,
   });
 }

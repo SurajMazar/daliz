@@ -17,7 +17,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ColorInput } from '@/components/ui/color-input';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
@@ -53,8 +59,15 @@ export function WorkspacePage() {
   const [members, setMembers] = useState(false);
 
   if (workspaces.isPending) return <Skeleton className="h-64" />;
-  if (workspaces.isError) return <ErrorState error={workspaces.error} onRetry={() => void workspaces.refetch()} />;
-  if (!workspace) return <ErrorState error={new Error('This workspace doesn’t exist or you don’t have access to it.')} title="Workspace not found" />;
+  if (workspaces.isError)
+    return <ErrorState error={workspaces.error} onRetry={() => void workspaces.refetch()} />;
+  if (!workspace)
+    return (
+      <ErrorState
+        error={new Error('This workspace doesn’t exist or you don’t have access to it.')}
+        title="Workspace not found"
+      />
+    );
   const manage = workspace.myRole === 'owner' || canWrite('planner.delete');
 
   return (
@@ -121,17 +134,35 @@ export function WorkspacePage() {
             const { done, total } = projectProgress(p);
             return (
               <li key={p.id}>
-                <Link to={`/planner/p/${p.id}`} className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Link
+                  to={`/planner/p/${p.id}`}
+                  className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
                   <Card className="flex h-full flex-col gap-3 p-5 transition-colors hover:border-primary/40">
                     <div className="flex items-center gap-2">
-                      <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: p.color }} aria-hidden />
+                      <span
+                        className="size-3 shrink-0 rounded-sm"
+                        style={{ backgroundColor: p.color }}
+                        aria-hidden
+                      />
                       <span className="font-mono text-xs text-muted-foreground">{p.key}</span>
-                      <Badge variant={p.status === 'active' ? 'info' : p.status === 'completed' ? 'success' : 'muted'} className="ml-auto">
+                      <Badge
+                        variant={
+                          p.status === 'active'
+                            ? 'info'
+                            : p.status === 'completed'
+                              ? 'success'
+                              : 'muted'
+                        }
+                        className="ml-auto"
+                      >
                         {humanize(p.status)}
                       </Badge>
                     </div>
                     <h2 className="font-semibold">{p.name}</h2>
-                    {p.description ? <p className="line-clamp-2 text-sm text-muted-foreground">{p.description}</p> : null}
+                    {p.description ? (
+                      <p className="line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
+                    ) : null}
                     <div className="mt-auto grid gap-1.5">
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>
@@ -139,12 +170,20 @@ export function WorkspacePage() {
                         </span>
                         {p.dueDate ? (
                           <span className="inline-flex items-center gap-1">
-                            <CalendarRange className="size-3" aria-hidden /> {formatIsoDate(p.dueDate, { dateStyle: 'medium' }, fmt.locale)}
+                            <CalendarRange className="size-3" aria-hidden />{' '}
+                            {formatIsoDate(p.dueDate, { dateStyle: 'medium' }, fmt.locale)}
                           </span>
                         ) : null}
                       </div>
-                      <Progress value={done} max={Math.max(total, 1)} label={`${p.name} progress`} tone={total && done === total ? 'success' : 'primary'} />
-                      {p.owner ? <div className="text-xs text-muted-foreground">Owner: {p.owner.name}</div> : null}
+                      <Progress
+                        value={done}
+                        max={Math.max(total, 1)}
+                        label={`${p.name} progress`}
+                        tone={total && done === total ? 'success' : 'primary'}
+                      />
+                      {p.owner ? (
+                        <div className="text-xs text-muted-foreground">Owner: {p.owner.name}</div>
+                      ) : null}
                     </div>
                   </Card>
                 </Link>
@@ -153,8 +192,12 @@ export function WorkspacePage() {
           })}
         </ul>
       )}
-      {creating ? <ProjectDialog workspaceId={workspace.id} onClose={() => setCreating(false)} /> : null}
-      {editingWs ? <WorkspaceDialog workspace={workspace} onClose={() => setEditingWs(false)} /> : null}
+      {creating ? (
+        <ProjectDialog workspaceId={workspace.id} onClose={() => setCreating(false)} />
+      ) : null}
+      {editingWs ? (
+        <WorkspaceDialog workspace={workspace} onClose={() => setEditingWs(false)} />
+      ) : null}
       {members ? <MembersDialog workspace={workspace} onClose={() => setMembers(false)} /> : null}
     </>
   );
@@ -173,12 +216,27 @@ const projectFormSchema = z
   })
   .superRefine((v, ctx) => {
     // Validate with the shared schema; empty dates mean "none".
-    const parsed = projectInputSchema.safeParse({ ...v, workspaceId: '00000000-0000-4000-8000-000000000000', startDate: v.startDate || null, dueDate: v.dueDate || null });
-    if (!parsed.success) for (const i of parsed.error.issues) ctx.addIssue({ code: 'custom', path: i.path, message: i.message });
+    const parsed = projectInputSchema.safeParse({
+      ...v,
+      workspaceId: '00000000-0000-4000-8000-000000000000',
+      startDate: v.startDate || null,
+      dueDate: v.dueDate || null,
+    });
+    if (!parsed.success)
+      for (const i of parsed.error.issues)
+        ctx.addIssue({ code: 'custom', path: i.path, message: i.message });
   });
 type ProjectValues = z.infer<typeof projectFormSchema>;
 
-export function ProjectDialog({ workspaceId, project, onClose }: { workspaceId: string; project?: ProjectRow; onClose: () => void }) {
+export function ProjectDialog({
+  workspaceId,
+  project,
+  onClose,
+}: {
+  workspaceId: string;
+  project?: ProjectRow;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const people = usePeople();
@@ -199,23 +257,50 @@ export function ProjectDialog({ workspaceId, project, onClose }: { workspaceId: 
   const nameField = form.register('name');
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
-    const common = { name: v.name.trim(), description: v.description, status: v.status, ownerId: v.ownerId, startDate: v.startDate || null, dueDate: v.dueDate || null, color: v.color };
+    const common = {
+      name: v.name.trim(),
+      description: v.description,
+      status: v.status,
+      ownerId: v.ownerId,
+      startDate: v.startDate || null,
+      dueDate: v.dueDate || null,
+      color: v.color,
+    };
     try {
       if (project) {
-        const saved = await api.patch<ProjectRow>(`/planner/projects/${project.id}`, { ...common, version: project.version });
+        const saved = await api.patch<ProjectRow>(`/planner/projects/${project.id}`, {
+          ...common,
+          version: project.version,
+        });
         qc.setQueryData(plannerKeys.project(project.id), saved);
       } else {
-        const created = await api.post<ProjectRow>('/planner/projects', { ...common, workspaceId, key: v.key.trim().toUpperCase() });
+        const created = await api.post<ProjectRow>('/planner/projects', {
+          ...common,
+          workspaceId,
+          key: v.key.trim().toUpperCase(),
+        });
         navigate(`/planner/p/${created.id}`);
       }
       void qc.invalidateQueries({ queryKey: plannerKeys.all });
       toast.success(project ? 'Project updated' : 'Project created');
       onClose();
     } catch (e) {
-      if (!applyServerErrors(e, form.setError, ['key', 'name', 'description', 'status', 'ownerId', 'startDate', 'dueDate', 'color'], { toastUnmatched: false })) setError(errorMessage(e));
+      if (
+        !applyServerErrors(
+          e,
+          form.setError,
+          ['key', 'name', 'description', 'status', 'ownerId', 'startDate', 'dueDate', 'color'],
+          { toastUnmatched: false },
+        )
+      )
+        setError(errorMessage(e));
     }
   });
-  const peopleOptions = (people.data ?? []).map((p) => ({ value: p.id, label: p.name, keywords: p.email }));
+  const peopleOptions = (people.data ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+    keywords: p.email,
+  }));
   const e = form.formState.errors;
   return (
     <Dialog open onOpenChange={(o) => !o && !form.formState.isSubmitting && onClose()}>
@@ -242,13 +327,31 @@ export function ProjectDialog({ workspaceId, project, onClose }: { workspaceId: 
                       .join('')
                       .toUpperCase()
                       .slice(0, 5);
-                    form.setValue('key', key.length >= 2 ? key : ev.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase());
+                    form.setValue(
+                      'key',
+                      key.length >= 2
+                        ? key
+                        : ev.target.value
+                            .replace(/[^A-Za-z0-9]/g, '')
+                            .slice(0, 4)
+                            .toUpperCase(),
+                    );
                   }
                 }}
               />
             </FormField>
-            <FormField label="Key" required hint={project ? 'Keys can’t change.' : 'Prefix for task numbers.'} error={e.key?.message}>
-              <Input className="font-mono uppercase" maxLength={10} disabled={!!project} {...form.register('key')} />
+            <FormField
+              label="Key"
+              required
+              hint={project ? 'Keys can’t change.' : 'Prefix for task numbers.'}
+              error={e.key?.message}
+            >
+              <Input
+                className="font-mono uppercase"
+                maxLength={10}
+                disabled={!!project}
+                {...form.register('key')}
+              />
             </FormField>
           </div>
           <FormField label="Description" error={e.description?.message}>
@@ -265,7 +368,21 @@ export function ProjectDialog({ workspaceId, project, onClose }: { workspaceId: 
               </NativeSelect>
             </FormField>
             <FormField label="Owner" error={e.ownerId?.message}>
-              <Controlled control={form.control} name="ownerId" render={(field, props) => <Combobox {...props} options={peopleOptions} value={field.value} onChange={field.onChange} placeholder="No owner" allowClear searchPlaceholder="Search people…" />} />
+              <Controlled
+                control={form.control}
+                name="ownerId"
+                render={(field, props) => (
+                  <Combobox
+                    {...props}
+                    options={peopleOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="No owner"
+                    allowClear
+                    searchPlaceholder="Search people…"
+                  />
+                )}
+              />
             </FormField>
             <FormField label="Start date" error={e.startDate?.message}>
               <Input type="date" {...form.register('startDate')} />
@@ -275,7 +392,18 @@ export function ProjectDialog({ workspaceId, project, onClose }: { workspaceId: 
             </FormField>
           </div>
           <FormField label="Color" error={e.color?.message}>
-            <Controlled control={form.control} name="color" render={(field, props) => <ColorInput id={props.id as string} label="Project color" value={field.value} onChange={field.onChange} />} />
+            <Controlled
+              control={form.control}
+              name="color"
+              render={(field, props) => (
+                <ColorInput
+                  id={props.id as string}
+                  label="Project color"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
           </FormField>
           <DialogFooter>
             <Button variant="outline" onClick={onClose} disabled={form.formState.isSubmitting}>

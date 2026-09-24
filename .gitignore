@@ -16,3 +16,4 @@ apps/desktop/resources/app/
 apps/desktop/resources/js/
 apps/desktop/update-signing-key*.json
 .idea/
+.claude/

@@ -1,4 +1,13 @@
-import { ArrowLeftRight, CircleUser, LogOut, Monitor, Moon, ShieldCheck, Sun, Users } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CircleUser,
+  LogOut,
+  Monitor,
+  Moon,
+  ShieldCheck,
+  Sun,
+  Users,
+} from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -15,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAccess, useSignOut, useSignOutEverywhere } from '@/lib/session';
 import { useTheme } from '@/lib/theme';
+import { getPlatform, launcherUrl } from '@/platform';
 
 export function UserMenu({ variant }: { variant: 'tenant' | 'platform' }) {
   const { me } = useAccess();
@@ -22,11 +32,18 @@ export function UserMenu({ variant }: { variant: 'tenant' | 'platform' }) {
   const signOut = useSignOut();
   const signOutAll = useSignOutEverywhere();
   const { preference, setPreference } = useTheme();
+  // Desktop shell: workspaces are chosen in the local launcher (validated loopback URL only).
+  const launcher = getPlatform() === 'DESKTOP' ? launcherUrl() : null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label={`Account menu for ${me.account.name}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          aria-label={`Account menu for ${me.account.name}`}
+        >
           <Avatar name={me.account.name} />
         </Button>
       </DropdownMenuTrigger>
@@ -40,7 +57,11 @@ export function UserMenu({ variant }: { variant: 'tenant' | 'platform' }) {
           <DropdownMenuItem onSelect={() => navigate('/account')}>
             <CircleUser /> Account
           </DropdownMenuItem>
-          {me.memberships.length > 1 || (variant === 'platform' && me.memberships.length > 0) ? (
+          {launcher ? (
+            <DropdownMenuItem onSelect={() => window.location.assign(launcher)}>
+              <ArrowLeftRight /> Switch workspace
+            </DropdownMenuItem>
+          ) : me.memberships.length > 1 || (variant === 'platform' && me.memberships.length > 0) ? (
             <DropdownMenuItem onSelect={() => navigate('/select-workspace')}>
               <ArrowLeftRight /> Switch workspace
             </DropdownMenuItem>
@@ -60,7 +81,9 @@ export function UserMenu({ variant }: { variant: 'tenant' | 'platform' }) {
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={preference ?? 'default'}
-          onValueChange={(v) => setPreference(v === 'default' ? null : (v as 'light' | 'dark' | 'system'))}
+          onValueChange={(v) =>
+            setPreference(v === 'default' ? null : (v as 'light' | 'dark' | 'system'))
+          }
         >
           <DropdownMenuRadioItem value="light">
             <Sun className="text-muted-foreground" /> Light

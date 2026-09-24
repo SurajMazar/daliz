@@ -12,7 +12,8 @@ export interface CacheRecord {
   updatedAt: number;
 }
 
-export type QueuedOpType = 'task.create' | 'task.update' | 'task.comment' | 'reminder.create' | 'daybook.create';
+export type QueuedOpType =
+  'task.create' | 'task.update' | 'task.comment' | 'reminder.create' | 'daybook.create';
 
 export interface QueuedOp {
   operationId: string;

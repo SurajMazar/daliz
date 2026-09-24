@@ -1,6 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { EventDetail } from '@daliz/shared';
-import { Ban, CalendarClock, Check, HelpCircle, MapPin, Pencil, Repeat, Trash, Users, X } from 'lucide-react';
+import {
+  Ban,
+  CalendarClock,
+  Check,
+  HelpCircle,
+  MapPin,
+  Pencil,
+  Repeat,
+  Trash,
+  Users,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ErrorState } from '@/components/app/error-state';
@@ -8,7 +19,14 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
@@ -19,9 +37,22 @@ import { eventsKeys, useEvent } from './api';
 import { EventDialog, type OccurrenceRef } from './event-dialog';
 import { formatDateTimeIn, formatTime } from './tz';
 
-const RESPONSE_TONE: Record<string, 'success' | 'destructive' | 'warning' | 'muted'> = { accepted: 'success', declined: 'destructive', tentative: 'warning', pending: 'muted' };
+const RESPONSE_TONE: Record<string, 'success' | 'destructive' | 'warning' | 'muted'> = {
+  accepted: 'success',
+  declined: 'destructive',
+  tentative: 'warning',
+  pending: 'muted',
+};
 
-export function EventDrawer({ eventId, occurrence, onClose }: { eventId: string | null; occurrence: OccurrenceRef | null; onClose: () => void }) {
+export function EventDrawer({
+  eventId,
+  occurrence,
+  onClose,
+}: {
+  eventId: string | null;
+  occurrence: OccurrenceRef | null;
+  onClose: () => void;
+}) {
   const event = useEvent(eventId);
   return (
     <Sheet open={!!eventId} onOpenChange={(o) => !o && onClose()}>
@@ -40,16 +71,30 @@ export function EventDrawer({ eventId, occurrence, onClose }: { eventId: string 
             <ErrorState error={event.error} onRetry={() => void event.refetch()} />
           </div>
         ) : (
-          <EventBody key={`${event.data.eventId}:${event.data.version}`} event={event.data} occurrence={occurrence} onClose={onClose} />
+          <EventBody
+            key={`${event.data.eventId}:${event.data.version}`}
+            event={event.data}
+            occurrence={occurrence}
+            onClose={onClose}
+          />
         )}
       </SheetContent>
     </Sheet>
   );
 }
 
-type Pending = { kind: 'edit' | 'cancel'; scope?: 'all' | 'occurrence' } | { kind: 'delete' } | null;
+type Pending =
+  { kind: 'edit' | 'cancel'; scope?: 'all' | 'occurrence' } | { kind: 'delete' } | null;
 
-function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurrence: OccurrenceRef | null; onClose: () => void }) {
+function EventBody({
+  event,
+  occurrence,
+  onClose,
+}: {
+  event: EventDetail;
+  occurrence: OccurrenceRef | null;
+  onClose: () => void;
+}) {
   const { canWrite, me } = useAccess();
   const fmt = useTenantFormat();
   const qc = useQueryClient();
@@ -58,27 +103,50 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
   const zone = fmt.timezone;
   const start = occurrence?.start ?? event.startsAt;
   const end = occurrence?.end ?? event.endsAt;
-  const cancelled = event.status === 'cancelled';
+  // Cancelled as a whole, or just this one occurrence of the series.
+  const cancelled =
+    event.status === 'cancelled' || (!!occurrence && event.exceptions.some((x) => x.cancelled && x.occurrenceStart === occurrence.occurrenceStart));
   const canEdit = event.canEdit && canWrite('events.update');
-  const invited = event.attendees.some((a) => a.id === me.tenant?.userId);
+  const myId = me.tenant?.userId;
+  const isOrganizer = !!event.organizer && event.organizer.id === myId;
+  const invited = !isOrganizer && event.attendees.some((a) => a.id === myId);
+  // Attendees include the organiser (see EventOccurrenceRow); show them once.
+  const guests = event.attendees.filter((a) => a.id !== event.organizer?.id);
   const refresh = (d?: EventDetail) => {
     if (d) qc.setQueryData(eventsKeys.detail(d.eventId), d);
     void qc.invalidateQueries({ queryKey: eventsKeys.all });
   };
 
   const rsvp = useMutation({
-    mutationFn: (response: 'accepted' | 'declined' | 'tentative') => api.post<EventDetail>(`/events/${event.eventId}/rsvp`, { response }),
+    mutationFn: (response: 'accepted' | 'declined' | 'tentative') =>
+      api.post<EventDetail>(`/events/${event.eventId}/rsvp`, { response }),
     onSuccess: (d, r) => {
       refresh(d);
-      toast.success(r === 'accepted' ? 'You’re going' : r === 'declined' ? 'You declined' : 'Marked as maybe');
+      toast.success(
+        r === 'accepted' ? 'You’re going' : r === 'declined' ? 'You declined' : 'Marked as maybe',
+      );
     },
   });
-  const cancelAll = useMutation({ mutationFn: () => api.patch<EventDetail>(`/events/${event.eventId}`, { status: 'cancelled', version: event.version }), onSuccess: (d) => refresh(d) });
-  const cancelOne = useMutation({
-    mutationFn: () => api.post<EventDetail>(`/events/${event.eventId}/occurrences`, { occurrenceStart: occurrence!.occurrenceStart, cancelled: true }),
+  const cancelAll = useMutation({
+    mutationFn: () =>
+      api.patch<EventDetail>(`/events/${event.eventId}`, {
+        status: 'cancelled',
+        version: event.version,
+      }),
     onSuccess: (d) => refresh(d),
   });
-  const remove = useMutation({ mutationFn: () => api.delete(`/events/${event.eventId}`), onSuccess: () => refresh() });
+  const cancelOne = useMutation({
+    mutationFn: () =>
+      api.post<EventDetail>(`/events/${event.eventId}/occurrences`, {
+        occurrenceStart: occurrence!.occurrenceStart,
+        cancelled: true,
+      }),
+    onSuccess: (d) => refresh(d),
+  });
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/events/${event.eventId}`),
+    onSuccess: () => refresh(),
+  });
 
   const choose = (kind: 'edit' | 'cancel') => {
     if (event.recurring && occurrence) setAskScope(kind);
@@ -93,16 +161,36 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
     <div className="flex h-full flex-col">
       <header className="border-b p-5 pr-12">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Badge variant={event.kind === 'deadline' ? 'destructive' : event.kind === 'meeting' ? 'success' : 'info'}>{humanize(event.kind)}</Badge>
-          {cancelled ? <Badge variant="muted">Cancelled</Badge> : event.status === 'tentative' ? <Badge variant="warning">Tentative</Badge> : null}
+          <Badge
+            variant={
+              event.kind === 'deadline'
+                ? 'destructive'
+                : event.kind === 'meeting'
+                  ? 'success'
+                  : 'info'
+            }
+          >
+            {humanize(event.kind)}
+          </Badge>
+          {cancelled ? (
+            <Badge variant="muted">Cancelled</Badge>
+          ) : event.status === 'tentative' ? (
+            <Badge variant="warning">Tentative</Badge>
+          ) : null}
           {event.visibility === 'private' ? <Badge variant="outline">Private</Badge> : null}
         </div>
-        <SheetTitle className={cn('text-xl font-semibold', cancelled && 'line-through')}>{occurrence?.title ?? event.title}</SheetTitle>
+        <SheetTitle className={cn('text-xl font-semibold', cancelled && 'line-through')}>
+          {occurrence?.title ?? event.title}
+        </SheetTitle>
         <SheetDescription className="mt-1 flex items-start gap-2 text-sm text-muted-foreground">
           <CalendarClock className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             {when}
-            {event.timezone !== zone ? <span className="block text-xs">Organised in {event.timezone.replace(/_/g, ' ')}</span> : null}
+            {event.timezone !== zone ? (
+              <span className="block text-xs">
+                Organised in {event.timezone.replace(/_/g, ' ')}
+              </span>
+            ) : null}
           </span>
         </SheetDescription>
       </header>
@@ -159,21 +247,27 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
                 <Badge variant="outline">Organiser</Badge>
               </li>
             ) : null}
-            {event.attendees.map((a) => (
+            {guests.map((a) => (
               <li key={a.id} className="flex items-center gap-2">
                 <Avatar name={a.name} />
                 <span className="flex-1">{a.name}</span>
-                <Badge variant={RESPONSE_TONE[a.response] ?? 'muted'}>{a.response === 'pending' ? 'No reply' : humanize(a.response)}</Badge>
+                <Badge variant={RESPONSE_TONE[a.response] ?? 'muted'}>
+                  {a.response === 'pending' ? 'No reply' : humanize(a.response)}
+                </Badge>
               </li>
             ))}
-            {event.attendees.length === 0 ? <li className="text-muted-foreground">No attendees.</li> : null}
+            {guests.length === 0 ? <li className="text-muted-foreground">No attendees.</li> : null}
           </ul>
         </section>
       </div>
       {(canEdit && !cancelled) || canWrite('events.delete') ? (
         <footer className="flex flex-wrap justify-end gap-2 border-t px-5 py-3">
           {canWrite('events.delete') && event.canEdit ? (
-            <Button variant="ghost" className="mr-auto text-destructive hover:text-destructive" onClick={() => setPending({ kind: 'delete' })}>
+            <Button
+              variant="ghost"
+              className="mr-auto text-destructive hover:text-destructive"
+              onClick={() => setPending({ kind: 'delete' })}
+            >
               <Trash /> Delete
             </Button>
           ) : null}
@@ -193,8 +287,12 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
       <Dialog open={!!askScope} onOpenChange={(o) => !o && setAskScope(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{askScope === 'edit' ? 'Edit recurring event' : 'Cancel recurring event'}</DialogTitle>
-            <DialogDescription>Apply the change to this occurrence only, or to every occurrence?</DialogDescription>
+            <DialogTitle>
+              {askScope === 'edit' ? 'Edit recurring event' : 'Cancel recurring event'}
+            </DialogTitle>
+            <DialogDescription>
+              Apply the change to this occurrence only, or to every occurrence?
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:flex-col sm:items-stretch">
             <Button
@@ -218,12 +316,23 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
         </DialogContent>
       </Dialog>
 
-      {pending?.kind === 'edit' ? <EventDialog event={event} occurrence={occurrence ?? undefined} scope={pending.scope} onClose={() => setPending(null)} /> : null}
+      {pending?.kind === 'edit' ? (
+        <EventDialog
+          event={event}
+          occurrence={occurrence ?? undefined}
+          scope={pending.scope}
+          onClose={() => setPending(null)}
+        />
+      ) : null}
       <ConfirmDialog
         open={pending?.kind === 'cancel'}
         onOpenChange={(o) => !o && setPending(null)}
         destructive
-        title={pending?.kind === 'cancel' && pending.scope === 'occurrence' ? 'Cancel this occurrence?' : 'Cancel this event?'}
+        title={
+          pending?.kind === 'cancel' && pending.scope === 'occurrence'
+            ? 'Cancel this occurrence?'
+            : 'Cancel this event?'
+        }
         description="Attendees are notified. The event stays in the calendar as cancelled."
         confirmLabel="Cancel event"
         onConfirm={async () => {
@@ -242,7 +351,9 @@ function EventBody({ event, occurrence, onClose }: { event: EventDetail; occurre
         onOpenChange={(o) => !o && setPending(null)}
         destructive
         title="Delete this event?"
-        description={event.recurring ? 'Every occurrence of the series is deleted.' : 'This can’t be undone.'}
+        description={
+          event.recurring ? 'Every occurrence of the series is deleted.' : 'This can’t be undone.'
+        }
         confirmLabel="Delete event"
         onConfirm={async () => {
           await remove.mutateAsync();

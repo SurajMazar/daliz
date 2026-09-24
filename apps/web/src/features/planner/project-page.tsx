@@ -69,7 +69,8 @@ export function ProjectPage() {
       </div>
     );
   }
-  if (project.isError) return <ErrorState error={project.error} onRetry={() => void project.refetch()} />;
+  if (project.isError)
+    return <ErrorState error={project.error} onRetry={() => void project.refetch()} />;
   const p = project.data;
   const { done, total } = projectProgress(p);
   const workspace = workspaces.data?.find((w) => w.id === p.workspaceId);
@@ -81,7 +82,11 @@ export function ProjectPage() {
         description={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm" style={{ backgroundColor: p.color }} aria-hidden />
+              <span
+                className="size-2.5 rounded-sm"
+                style={{ backgroundColor: p.color }}
+                aria-hidden
+              />
               <span className="font-mono text-xs">{p.key}</span>
             </span>
             {workspace ? (
@@ -92,7 +97,8 @@ export function ProjectPage() {
             <Badge variant={p.status === 'active' ? 'info' : 'muted'}>{humanize(p.status)}</Badge>
             {p.startDate || p.dueDate ? (
               <span>
-                {formatIsoDate(p.startDate, { dateStyle: 'medium' }, fmt.locale)} → {formatIsoDate(p.dueDate, { dateStyle: 'medium' }, fmt.locale)}
+                {formatIsoDate(p.startDate, { dateStyle: 'medium' }, fmt.locale)} →{' '}
+                {formatIsoDate(p.dueDate, { dateStyle: 'medium' }, fmt.locale)}
               </span>
             ) : null}
             {p.owner ? <span>Owner: {p.owner.name}</span> : null}
@@ -104,7 +110,12 @@ export function ProjectPage() {
               <div className="mb-1 text-xs text-muted-foreground">
                 {done}/{total} done
               </div>
-              <Progress value={done} max={Math.max(1, total)} label="Project progress" tone={total && done === total ? 'success' : 'primary'} />
+              <Progress
+                value={done}
+                max={Math.max(1, total)}
+                label="Project progress"
+                tone={total && done === total ? 'success' : 'primary'}
+              />
             </div>
             {p.canEdit && canWrite('planner.update') ? (
               <Button variant="outline" onClick={() => setEditing(true)}>
@@ -114,7 +125,11 @@ export function ProjectPage() {
           </div>
         }
       />
-      {p.description ? <p className="-mt-3 mb-5 max-w-3xl text-sm whitespace-pre-line text-muted-foreground">{p.description}</p> : null}
+      {p.description ? (
+        <p className="-mt-3 mb-5 max-w-3xl text-sm whitespace-pre-line text-muted-foreground">
+          {p.description}
+        </p>
+      ) : null}
 
       <Tabs value={view} onValueChange={setView}>
         <TabsList aria-label="Project views">
@@ -158,7 +173,9 @@ export function ProjectPage() {
       </Tabs>
 
       <TaskDrawer taskId={taskId} onClose={() => openTask('')} onOpenTask={openTask} />
-      {editing ? <ProjectDialog workspaceId={p.workspaceId} project={p} onClose={() => setEditing(false)} /> : null}
+      {editing ? (
+        <ProjectDialog workspaceId={p.workspaceId} project={p} onClose={() => setEditing(false)} />
+      ) : null}
     </>
   );
 }

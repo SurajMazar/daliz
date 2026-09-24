@@ -25,16 +25,16 @@ Multi-tenant business management platform. **One tenant = one isolated PostgreSQ
 | Super Admin console: orgs, tenants, domains, tenant admins, audited support access, settings, flags, health | ✅ |
 | Tenant administration: users, roles, settings, security policy, audit log | ✅ |
 | Branding: logo pipeline (validation, SVG sanitising, variants), Color Thief palette, WCAG-checked theme engine | ✅ |
-| Accounting (double-entry, approvals, posting, reversals, DB-enforced immutability) + Daybook + reports | ✅ API |
-| Files: folders, versions, trash, sharing, restricted folders, quotas, malware scanning, signed URLs | ✅ API |
-| Planner: workspaces, projects, tasks/subtasks, board ordering, labels, comments, attachments, activity | ✅ API |
-| Events (recurring, DST-safe, per-occurrence changes), reminders, notifications (in-app/email/push), WebSockets | ✅ API |
-| Web app (React): auth, tenant admin, branding, platform console | ✅ |
-| Web app: finance, files, planner UIs | in progress |
-| Web app: events/notifications UI, PWA + offline sync | next |
+| Accounting (double-entry, approvals, posting, reversals, DB-enforced immutability) + Daybook + reports | ✅ |
+| Files: folders, versions, trash, sharing, restricted folders, quotas, malware scanning, signed URLs | ✅ |
+| Planner: workspaces, projects, tasks/subtasks, board ordering, labels, comments, attachments, activity | ✅ |
+| Events (recurring, DST-safe, per-occurrence changes), reminders, notifications (in-app/email/push), WebSockets | ✅ |
+| Web app (React): auth, tenant admin, branding, platform console, lock screen, keyboard shortcuts | ✅ |
+| Web app: finance, files, planner, events/reminders, notifications (live + push), API keys | ✅ |
+| PWA: installable, tenant-branded manifest, service worker, offline cache + idempotent mutation queue with conflict handling | ✅ |
 | Desktop app (Neutralino launcher, signed updates, deep links) | ✅ |
 | Tenant backup/restore jobs | designed (docs/BACKUP.md), not yet implemented |
-| Tests: 98 API integration/security + 19 shared + 9 desktop | ✅ |
+| Tests: 104 API integration/security + 19 shared + 9 desktop | ✅ |
 
 ## Quick start
 

@@ -22,7 +22,11 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((value: unknown) => {
         if (raw || value instanceof StreamableFile) return value;
-        if (isPaginated(value)) return { success: true, data: value.items, meta: value.meta };
+        if (isPaginated(value)) {
+          // Extra top-level fields (e.g. notifications' unread count) travel in meta.
+          const { items, meta, ...extra } = value as { items: unknown[]; meta: object } & Record<string, unknown>;
+          return { success: true, data: items, meta: { ...meta, ...extra } };
+        }
         return { success: true, data: value ?? null };
       }),
     );

@@ -60,7 +60,10 @@ export function SupportBanner() {
         <span className="mx-1.5 opacity-70">—</span>
         <span>
           ends {relativeTime(support.expiresAt, now)}{' '}
-          <span className={urgent ? 'font-semibold' : 'opacity-80'} aria-live={urgent ? 'polite' : 'off'}>
+          <span
+            className={urgent ? 'font-semibold' : 'opacity-80'}
+            aria-live={urgent ? 'polite' : 'off'}
+          >
             ({formatDuration(remainingMs / 1000)} left)
           </span>
         </span>

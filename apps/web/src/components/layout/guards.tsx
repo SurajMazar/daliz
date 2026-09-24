@@ -21,13 +21,22 @@ export function RequireSession({ allowEnrollment = false }: { allowEnrollment?: 
   if (error && me === undefined) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
-        <ErrorState error={error} onRetry={() => void refetch()} title="Couldn’t load your session" />
+        <ErrorState
+          error={error}
+          onRetry={() => void refetch()}
+          title="Couldn’t load your session"
+        />
       </div>
     );
   }
   if (!me) {
     const next = location.pathname + location.search;
-    return <Navigate to={next && next !== '/' ? `/login?next=${encodeURIComponent(next)}` : '/login'} replace />;
+    return (
+      <Navigate
+        to={next && next !== '/' ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+        replace
+      />
+    );
   }
   if (me.stage === 'mfa_pending') return <Navigate to="/login/mfa" replace />;
   if (me.mustEnrollMfa && !allowEnrollment) return <Navigate to="/mfa/setup" replace />;
@@ -42,7 +51,9 @@ export function NoAccess({ what = 'this page' }: { what?: string }) {
         <Lock className="size-5" aria-hidden />
       </div>
       <h1 className="text-lg font-semibold">You don’t have access to {what}</h1>
-      <p className="max-w-sm text-sm text-muted-foreground">Ask a workspace administrator to grant you the required permission.</p>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Ask a workspace administrator to grant you the required permission.
+      </p>
       <Button asChild variant="outline" className="mt-2">
         <Link to="/">Back to dashboard</Link>
       </Button>
@@ -50,12 +61,24 @@ export function NoAccess({ what = 'this page' }: { what?: string }) {
   );
 }
 
-export function RequirePermission({ perm, children }: { perm: TenantPermission; children: ReactNode }) {
+export function RequirePermission({
+  perm,
+  children,
+}: {
+  perm: TenantPermission;
+  children: ReactNode;
+}) {
   const { can } = useAccess();
   return can(perm) ? <>{children}</> : <NoAccess />;
 }
 
-export function RequirePlatformPermission({ perm, children }: { perm: PlatformPermission; children: ReactNode }) {
+export function RequirePlatformPermission({
+  perm,
+  children,
+}: {
+  perm: PlatformPermission;
+  children: ReactNode;
+}) {
   const { canPlatform } = useAccess();
   return canPlatform(perm) ? <>{children}</> : <NoAccess />;
 }

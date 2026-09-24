@@ -60,7 +60,13 @@ export const occurrenceChangeSchema = z
 export const rsvpSchema = z.object({ response: z.enum(['accepted', 'declined', 'tentative']) });
 
 export const eventRangeSchema = z
-  .object({ from: instant, to: instant, mine: z.enum(['true', 'false']).default('false').transform((v) => v === 'true') })
+  .object({
+    from: instant,
+    to: instant,
+    mine: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+    /** Also return single occurrences cancelled from a series, with status 'cancelled'. */
+    includeCancelled: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  })
   .refine((r) => r.to > r.from, { message: '"to" must be after "from"', path: ['to'] })
   .refine((r) => r.to.getTime() - r.from.getTime() <= 400 * 86400_000, { message: 'Ask for at most ~13 months at a time', path: ['to'] });
 
@@ -146,6 +152,7 @@ export interface EventOccurrenceRow {
   recurrence: string | null;
   recurrenceText: string;
   organizer: PersonMini | null;
+  /** Everyone invited, including the organizer (stored as an attendee with response 'accepted'). */
   attendees: (PersonMini & { response: 'pending' | 'accepted' | 'declined' | 'tentative' })[];
   myResponse: 'pending' | 'accepted' | 'declined' | 'tentative' | null;
   canEdit: boolean;

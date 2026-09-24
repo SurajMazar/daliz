@@ -31,23 +31,52 @@ import { ErrorState } from '@/components/app/error-state';
 import { PageHeader } from '@/components/app/page-header';
 import { useBreadcrumbTail } from '@/components/layout/breadcrumbs';
 import { Badge } from '@/components/ui/badge';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tooltip } from '@/components/ui/tooltip';
 import { api, errorMessage, isApiError, uploadWithProgress } from '@/lib/api';
 import { useDebouncedValue } from '@/lib/hooks';
 import { useAccess } from '@/lib/session';
 import { ago, cn, formatDateTime, humanize } from '@/lib/utils';
-import { downloadFile, filesKeys, formatBytes, MAX_UPLOAD_BYTES, useFolderContents, useStorageUsage, type Item } from './api';
-import { FolderPickerDialog, NewFolderDialog, PreviewDialog, RenameDialog, ShareDialog, VersionsSheet } from './dialogs';
+import {
+  downloadFile,
+  filesKeys,
+  formatBytes,
+  MAX_UPLOAD_BYTES,
+  useFolderContents,
+  useStorageUsage,
+  type Item,
+} from './api';
+import {
+  FolderPickerDialog,
+  NewFolderDialog,
+  PreviewDialog,
+  RenameDialog,
+  ShareDialog,
+  VersionsSheet,
+} from './dialogs';
 import { FileIcon, FolderIcon } from './file-icon';
 
 type ViewMode = 'grid' | 'list';
@@ -98,7 +127,14 @@ export function FilesPage() {
     setCategory('');
   }, [folderId]);
 
-  const contents = useFolderContents({ folderId, q: q || undefined, category: category || undefined, sort, order, pageSize: 200 });
+  const contents = useFolderContents({
+    folderId,
+    q: q || undefined,
+    category: category || undefined,
+    sort,
+    order,
+    pageSize: 200,
+  });
   const usage = useStorageUsage();
   const data = contents.data;
   const folder = data?.folder ?? null;
@@ -116,25 +152,53 @@ export function FilesPage() {
   const canUploadHere = canWrite('files.upload') && (folder ? folder.canEdit : true);
   const searching = !!(q || category);
 
-  const invalidate = useCallback(() => void qc.invalidateQueries({ queryKey: filesKeys.all }), [qc]);
+  const invalidate = useCallback(
+    () => void qc.invalidateQueries({ queryKey: filesKeys.all }),
+    [qc],
+  );
 
   const startUploads = (files: FileList | File[]) => {
     const list = Array.from(files);
     for (const f of list) {
       const id = crypto.randomUUID();
       const known = fileTypeForName(f.name);
-      const problem = !known ? 'This file type isn’t allowed.' : f.size > MAX_UPLOAD_BYTES ? `Larger than ${formatBytes(MAX_UPLOAD_BYTES)}.` : f.size === 0 ? 'The file is empty.' : null;
-      setUploads((u) => [...u, { id, name: f.name, size: f.size, progress: 0, status: problem ? 'error' : 'uploading', error: problem ?? undefined }]);
+      const problem = !known
+        ? 'This file type isn’t allowed.'
+        : f.size > MAX_UPLOAD_BYTES
+          ? `Larger than ${formatBytes(MAX_UPLOAD_BYTES)}.`
+          : f.size === 0
+            ? 'The file is empty.'
+            : null;
+      setUploads((u) => [
+        ...u,
+        {
+          id,
+          name: f.name,
+          size: f.size,
+          progress: 0,
+          status: problem ? 'error' : 'uploading',
+          error: problem ?? undefined,
+        },
+      ]);
       if (problem) continue;
       const form = new FormData();
       if (folderId) form.append('folderId', folderId);
       form.append('file', f);
-      uploadWithProgress<FileRow>('/files/upload', form, { onProgress: (p) => setUploads((u) => u.map((t) => (t.id === id ? { ...t, progress: p } : t))) })
+      uploadWithProgress<FileRow>('/files/upload', form, {
+        onProgress: (p) =>
+          setUploads((u) => u.map((t) => (t.id === id ? { ...t, progress: p } : t))),
+      })
         .then(() => {
-          setUploads((u) => u.map((t) => (t.id === id ? { ...t, progress: 1, status: 'done' } : t)));
+          setUploads((u) =>
+            u.map((t) => (t.id === id ? { ...t, progress: 1, status: 'done' } : t)),
+          );
           invalidate();
         })
-        .catch((e: unknown) => setUploads((u) => u.map((t) => (t.id === id ? { ...t, status: 'error', error: errorMessage(e) } : t))));
+        .catch((e: unknown) =>
+          setUploads((u) =>
+            u.map((t) => (t.id === id ? { ...t, status: 'error', error: errorMessage(e) } : t)),
+          ),
+        );
     }
   };
 
@@ -147,20 +211,29 @@ export function FilesPage() {
   };
 
   const trash = useMutation({
-    mutationFn: (item: Item) => (item.kind === 'file' ? api.delete(`/files/${item.row.id}`) : api.delete(`/files/folders/${item.row.id}`)),
+    mutationFn: (item: Item) =>
+      item.kind === 'file'
+        ? api.delete(`/files/${item.row.id}`)
+        : api.delete(`/files/folders/${item.row.id}`),
     onSuccess: (_d, item) => {
       invalidate();
-      toast.success(`Moved “${item.row.name}” to trash`, { action: { label: 'View trash', onClick: () => navigate('/files/trash') } });
+      toast.success(`Moved “${item.row.name}” to trash`, {
+        action: { label: 'View trash', onClick: () => navigate('/files/trash') },
+      });
     },
   });
 
   const open = (item: Item) => {
     if (item.kind === 'folder') navigate(`/files/folder/${item.row.id}`);
-    else if (item.row.previewable && item.row.scanStatus === 'clean') setDialog({ kind: 'preview', file: item.row });
+    else if (item.row.previewable && item.row.scanStatus === 'clean')
+      setDialog({ kind: 'preview', file: item.row });
     else void downloadFile(item.row.id).catch((e: unknown) => toast.error(errorMessage(e)));
   };
 
-  const items: Item[] = [...(data?.folders ?? []).map((row) => ({ kind: 'folder' as const, row })), ...(data?.files ?? []).map((row) => ({ kind: 'file' as const, row }))];
+  const items: Item[] = [
+    ...(data?.folders ?? []).map((row) => ({ kind: 'folder' as const, row })),
+    ...(data?.files ?? []).map((row) => ({ kind: 'file' as const, row })),
+  ];
 
   return (
     <div
@@ -182,7 +255,13 @@ export function FilesPage() {
     >
       <PageHeader
         title={folder?.name ?? 'Files'}
-        description={folder ? (folder.restricted ? 'Restricted folder — only people with access can see it.' : undefined) : 'Your workspace’s shared document library.'}
+        description={
+          folder
+            ? folder.restricted
+              ? 'Restricted folder — only people with access can see it.'
+              : undefined
+            : 'Your workspace’s shared document library.'
+        }
         actions={
           <>
             <Button asChild variant="ghost">
@@ -192,12 +271,16 @@ export function FilesPage() {
             </Button>
             {canUploadHere ? (
               <>
-                <Button variant="outline" onClick={() => setNewFolderOpen(true)}>
-                  <FolderPlus /> New folder
-                </Button>
-                <Button onClick={() => inputRef.current?.click()}>
-                  <Upload /> Upload
-                </Button>
+                <OnlineOnly>
+                  <Button variant="outline" onClick={() => setNewFolderOpen(true)}>
+                    <FolderPlus /> New folder
+                  </Button>
+                </OnlineOnly>
+                <OnlineOnly>
+                  <Button onClick={() => inputRef.current?.click()}>
+                    <Upload /> Upload
+                  </Button>
+                </OnlineOnly>
                 <input
                   ref={inputRef}
                   type="file"
@@ -216,8 +299,14 @@ export function FilesPage() {
       />
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <nav aria-label="Folder path" className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-sm">
-          <Link to="/files" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+        <nav
+          aria-label="Folder path"
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-sm"
+        >
+          <Link
+            to="/files"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
             <Home className="size-3.5" aria-hidden /> Library
           </Link>
           {data?.breadcrumbs.map((b, i) => (
@@ -228,7 +317,10 @@ export function FilesPage() {
                   {b.name}
                 </span>
               ) : (
-                <Link to={`/files/folder/${b.id}`} className="truncate rounded px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                <Link
+                  to={`/files/folder/${b.id}`}
+                  className="truncate rounded px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
                   {b.name}
                 </Link>
               )}
@@ -246,7 +338,10 @@ export function FilesPage() {
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               type="search"
               aria-label={folderId ? 'Search this folder' : 'Search the library'}
@@ -257,7 +352,12 @@ export function FilesPage() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <NativeSelect aria-label="File type" value={category} onChange={(e) => setCategory(e.target.value)} className="w-40">
+            <NativeSelect
+              aria-label="File type"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-40"
+            >
               <option value="">All types</option>
               {FILE_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -265,21 +365,45 @@ export function FilesPage() {
                 </option>
               ))}
             </NativeSelect>
-            <NativeSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="w-36">
+            <NativeSelect
+              aria-label="Sort by"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="w-36"
+            >
               <option value="name">Name</option>
               <option value="updated">Last updated</option>
               <option value="size">Size</option>
             </NativeSelect>
             <Tooltip content={order === 'asc' ? 'Ascending' : 'Descending'}>
-              <Button variant="outline" size="icon" aria-label={`Sort ${order === 'asc' ? 'descending' : 'ascending'}`} onClick={() => setOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={`Sort ${order === 'asc' ? 'descending' : 'ascending'}`}
+                onClick={() => setOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
+              >
                 <ArrowDownUp className={cn(order === 'desc' && 'rotate-180')} />
               </Button>
             </Tooltip>
             <div role="radiogroup" aria-label="View" className="flex rounded-md border p-0.5">
-              <Button variant={view === 'grid' ? 'secondary' : 'ghost'} size="icon-sm" role="radio" aria-checked={view === 'grid'} aria-label="Grid view" onClick={() => setView('grid')}>
+              <Button
+                variant={view === 'grid' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                role="radio"
+                aria-checked={view === 'grid'}
+                aria-label="Grid view"
+                onClick={() => setView('grid')}
+              >
                 <LayoutGrid />
               </Button>
-              <Button variant={view === 'list' ? 'secondary' : 'ghost'} size="icon-sm" role="radio" aria-checked={view === 'list'} aria-label="List view" onClick={() => setView('list')}>
+              <Button
+                variant={view === 'list' ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                role="radio"
+                aria-checked={view === 'list'}
+                aria-label="List view"
+                onClick={() => setView('list')}
+              >
                 <List />
               </Button>
             </div>
@@ -297,21 +421,38 @@ export function FilesPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={FolderOpen}
-            title={searching ? 'Nothing matches your search' : folder ? 'This folder is empty' : 'Your library is empty'}
-            description={searching ? undefined : canUploadHere ? 'Drag files here or use Upload.' : undefined}
+            title={
+              searching
+                ? 'Nothing matches your search'
+                : folder
+                  ? 'This folder is empty'
+                  : 'Your library is empty'
+            }
+            description={
+              searching ? undefined : canUploadHere ? 'Drag files here or use Upload.' : undefined
+            }
             action={
               !searching && canUploadHere ? (
-                <Button size="sm" onClick={() => inputRef.current?.click()}>
-                  <Upload /> Upload files
-                </Button>
+                <OnlineOnly>
+                  <Button size="sm" onClick={() => inputRef.current?.click()}>
+                    <Upload /> Upload files
+                  </Button>
+                </OnlineOnly>
               ) : null
             }
           />
         ) : view === 'grid' ? (
-          <ul className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-label="Files and folders">
+          <ul
+            className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            aria-label="Files and folders"
+          >
             {items.map((item) => (
               <li key={`${item.kind}-${item.row.id}`}>
-                <GridCard item={item} onOpen={() => open(item)} menu={<ItemMenu item={item} onOpen={() => open(item)} onAction={setDialog} />} />
+                <GridCard
+                  item={item}
+                  onOpen={() => open(item)}
+                  menu={<ItemMenu item={item} onOpen={() => open(item)} onAction={setDialog} />}
+                />
               </li>
             ))}
           </ul>
@@ -332,19 +473,31 @@ export function FilesPage() {
               {items.map((item) => (
                 <TableRow key={`${item.kind}-${item.row.id}`} onDoubleClick={() => open(item)}>
                   <TableCell>
-                    <button type="button" onClick={() => open(item)} className="flex max-w-full items-center gap-3 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {item.kind === 'folder' ? <FolderIcon restricted={item.row.restricted} size="sm" /> : <FileIcon category={item.row.category} size="sm" />}
+                    <button
+                      type="button"
+                      onClick={() => open(item)}
+                      className="flex max-w-full items-center gap-3 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {item.kind === 'folder' ? (
+                        <FolderIcon restricted={item.row.restricted} size="sm" />
+                      ) : (
+                        <FileIcon category={item.row.category} size="sm" />
+                      )}
                       <span className="truncate font-medium">{item.row.name}</span>
                       <ItemBadges item={item} />
                     </button>
                   </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">{item.row.createdBy?.name ?? '—'}</TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">
+                    {item.row.createdBy?.name ?? '—'}
+                  </TableCell>
                   <TableCell className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
                     <time dateTime={item.row.createdAt} title={formatDateTime(item.row.createdAt)}>
                       {formatDateTime(item.row.createdAt)}
                     </time>
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">{item.kind === 'file' ? formatBytes(item.row.sizeBytes) : '—'}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                    {item.kind === 'file' ? formatBytes(item.row.sizeBytes) : '—'}
+                  </TableCell>
                   <TableCell>
                     <ItemMenu item={item} onOpen={() => open(item)} onAction={setDialog} />
                   </TableCell>
@@ -355,7 +508,8 @@ export function FilesPage() {
         )}
         {data && data.meta.total > data.meta.pageSize ? (
           <p className="border-t px-4 py-3 text-sm text-muted-foreground">
-            Showing the first {data.meta.pageSize} of {data.meta.total} items. Refine your search to see others.
+            Showing the first {data.meta.pageSize} of {data.meta.total} items. Refine your search to
+            see others.
           </p>
         ) : null}
       </Card>
@@ -369,13 +523,28 @@ export function FilesPage() {
         </div>
       ) : null}
 
-      <UploadPanel tasks={uploads} onDismiss={() => setUploads((u) => u.filter((t) => t.status === 'uploading'))} />
+      <UploadPanel
+        tasks={uploads}
+        onDismiss={() => setUploads((u) => u.filter((t) => t.status === 'uploading'))}
+      />
 
-      <NewFolderDialog parentId={folderId ?? null} open={newFolderOpen} onOpenChange={setNewFolderOpen} />
-      {dialog?.kind === 'rename' ? <RenameDialog item={dialog.item} onClose={() => setDialog(null)} /> : null}
-      {dialog?.kind === 'share' ? <ShareDialog item={dialog.item} onClose={() => setDialog(null)} /> : null}
-      {dialog?.kind === 'preview' ? <PreviewDialog file={dialog.file} onClose={() => setDialog(null)} /> : null}
-      {dialog?.kind === 'versions' ? <VersionsSheet file={dialog.file} onClose={() => setDialog(null)} /> : null}
+      <NewFolderDialog
+        parentId={folderId ?? null}
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+      />
+      {dialog?.kind === 'rename' ? (
+        <RenameDialog item={dialog.item} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === 'share' ? (
+        <ShareDialog item={dialog.item} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === 'preview' ? (
+        <PreviewDialog file={dialog.file} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === 'versions' ? (
+        <VersionsSheet file={dialog.file} onClose={() => setDialog(null)} />
+      ) : null}
       {dialog?.kind === 'move' || dialog?.kind === 'copy' ? (
         <FolderPickerDialog
           title={`${dialog.kind === 'move' ? 'Move' : 'Copy'} “${dialog.item.row.name}”`}
@@ -386,9 +555,18 @@ export function FilesPage() {
           onPick={async (target) => {
             const { item } = dialog;
             try {
-              if (dialog.kind === 'copy') await api.post(`/files/${item.row.id}/copy`, { folderId: target });
-              else if (item.kind === 'file') await api.patch(`/files/${item.row.id}`, { folderId: target, version: item.row.version });
-              else await api.patch(`/files/folders/${item.row.id}`, { parentId: target, version: item.row.version });
+              if (dialog.kind === 'copy')
+                await api.post(`/files/${item.row.id}/copy`, { folderId: target });
+              else if (item.kind === 'file')
+                await api.patch(`/files/${item.row.id}`, {
+                  folderId: target,
+                  version: item.row.version,
+                });
+              else
+                await api.patch(`/files/folders/${item.row.id}`, {
+                  parentId: target,
+                  version: item.row.version,
+                });
               toast.success(dialog.kind === 'copy' ? 'Copied' : 'Moved');
               invalidate();
             } catch (e) {
@@ -403,7 +581,11 @@ export function FilesPage() {
         onOpenChange={(o) => !o && setDialog(null)}
         destructive
         title={dialog?.kind === 'trash' ? `Move “${dialog.item.row.name}” to trash?` : ''}
-        description={dialog?.kind === 'trash' && dialog.item.kind === 'folder' ? 'Everything inside the folder goes with it. You can restore it from the trash.' : 'You can restore it from the trash.'}
+        description={
+          dialog?.kind === 'trash' && dialog.item.kind === 'folder'
+            ? 'Everything inside the folder goes with it. You can restore it from the trash.'
+            : 'You can restore it from the trash.'
+        }
         confirmLabel="Move to trash"
         onConfirm={async () => {
           if (dialog?.kind === 'trash') await trash.mutateAsync(dialog.item);
@@ -449,18 +631,38 @@ function ItemBadges({ item }: { item: Item }) {
 function GridCard({ item, onOpen, menu }: { item: Item; onOpen: () => void; menu: ReactNode }) {
   return (
     <div className="group relative flex h-full flex-col rounded-lg border bg-card transition-colors hover:border-primary/40 hover:bg-muted/30">
-      <button type="button" onClick={onOpen} className="flex flex-1 flex-col items-start gap-3 rounded-lg p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        {item.kind === 'folder' ? <FolderIcon restricted={item.row.restricted} size="lg" /> : <FileIcon category={item.row.category} size="lg" />}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex flex-1 flex-col items-start gap-3 rounded-lg p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {item.kind === 'folder' ? (
+          <FolderIcon restricted={item.row.restricted} size="lg" />
+        ) : (
+          <FileIcon category={item.row.category} size="lg" />
+        )}
         <div className="w-full min-w-0 pr-6">
           <div className="truncate text-sm font-medium" title={item.row.name}>
             {item.row.name}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            {item.kind === 'file' ? <span>{formatBytes(item.row.sizeBytes)}</span> : <span>Folder</span>}
+            {item.kind === 'file' ? (
+              <span>{formatBytes(item.row.sizeBytes)}</span>
+            ) : (
+              <span>Folder</span>
+            )}
             <span aria-hidden>·</span>
-            <time dateTime={item.row.createdAt} title={`Uploaded ${formatDateTime(item.row.createdAt)}`}>{ago(item.row.createdAt)}</time>
+            <time
+              dateTime={item.row.createdAt}
+              title={`Uploaded ${formatDateTime(item.row.createdAt)}`}
+            >
+              {ago(item.row.createdAt)}
+            </time>
           </div>
-          <div className="truncate text-xs text-muted-foreground" title={item.row.createdBy?.name ?? undefined}>
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={item.row.createdBy?.name ?? undefined}
+          >
             {item.row.createdBy ? `by ${item.row.createdBy.name}` : '\u00a0'}
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -473,7 +675,15 @@ function GridCard({ item, onOpen, menu }: { item: Item; onOpen: () => void; menu
   );
 }
 
-function ItemMenu({ item, onOpen, onAction }: { item: Item; onOpen: () => void; onAction: (d: Dialog) => void }) {
+function ItemMenu({
+  item,
+  onOpen,
+  onAction,
+}: {
+  item: Item;
+  onOpen: () => void;
+  onAction: (d: Dialog) => void;
+}) {
   const { can, canWrite, me, readOnly } = useAccess();
   const editable = item.row.canEdit;
   const file = item.kind === 'file' ? item.row : null;
@@ -487,12 +697,18 @@ function ItemMenu({ item, onOpen, onAction }: { item: Item; onOpen: () => void; 
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuItem onSelect={onOpen}>
-          {item.kind === 'folder' ? <FolderOpen /> : file?.previewable ? <Eye /> : <Download />} {item.kind === 'folder' ? 'Open' : file?.previewable ? 'Preview' : 'Download'}
+          {item.kind === 'folder' ? <FolderOpen /> : file?.previewable ? <Eye /> : <Download />}{' '}
+          {item.kind === 'folder' ? 'Open' : file?.previewable ? 'Preview' : 'Download'}
         </DropdownMenuItem>
         {file ? (
           <>
             {file.previewable ? (
-              <DropdownMenuItem disabled={!clean} onSelect={() => void downloadFile(file.id).catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <DropdownMenuItem
+                disabled={!clean}
+                onSelect={() =>
+                  void downloadFile(file.id).catch((e: unknown) => toast.error(errorMessage(e)))
+                }
+              >
                 <Download /> Download
               </DropdownMenuItem>
             ) : null}
@@ -546,7 +762,12 @@ function UsageMeter({ usedBytes, quotaBytes }: { usedBytes?: number; quotaBytes?
           {formatBytes(usedBytes)} of {formatBytes(quotaBytes)}
         </span>
       </div>
-      <Progress value={usedBytes} max={quotaBytes} label="Storage used" tone={ratio > 0.9 ? 'destructive' : ratio > 0.75 ? 'warning' : 'primary'} />
+      <Progress
+        value={usedBytes}
+        max={quotaBytes}
+        label="Storage used"
+        tone={ratio > 0.9 ? 'destructive' : ratio > 0.75 ? 'warning' : 'primary'}
+      />
     </div>
   );
 }
@@ -555,7 +776,10 @@ function UploadPanel({ tasks, onDismiss }: { tasks: UploadTask[]; onDismiss: () 
   if (tasks.length === 0) return null;
   const active = tasks.filter((t) => t.status === 'uploading').length;
   return (
-    <section aria-label="Uploads" className="fixed right-4 bottom-4 z-40 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-popover shadow-xl">
+    <section
+      aria-label="Uploads"
+      className="fixed right-4 bottom-4 z-40 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-popover shadow-xl"
+    >
       <header className="flex items-center justify-between border-b px-4 py-2.5">
         <h2 className="text-sm font-semibold" aria-live="polite">
           {active ? `Uploading ${active} file${active === 1 ? '' : 's'}…` : 'Uploads finished'}
@@ -571,11 +795,22 @@ function UploadPanel({ tasks, onDismiss }: { tasks: UploadTask[]; onDismiss: () 
           <li key={t.id} className="grid gap-1.5 px-4 py-2.5">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="truncate">{t.name}</span>
-              <span className={cn('shrink-0 text-xs', t.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>
-                {t.status === 'done' ? 'Done' : t.status === 'error' ? 'Failed' : `${Math.round(t.progress * 100)}%`}
+              <span
+                className={cn(
+                  'shrink-0 text-xs',
+                  t.status === 'error' ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {t.status === 'done'
+                  ? 'Done'
+                  : t.status === 'error'
+                    ? 'Failed'
+                    : `${Math.round(t.progress * 100)}%`}
               </span>
             </div>
-            {t.status === 'uploading' ? <Progress value={t.progress} label={`Uploading ${t.name}`} /> : null}
+            {t.status === 'uploading' ? (
+              <Progress value={t.progress} label={`Uploading ${t.name}`} />
+            ) : null}
             {t.error ? (
               <p className="text-xs text-destructive" role="alert">
                 {t.error}
@@ -587,4 +822,3 @@ function UploadPanel({ tasks, onDismiss }: { tasks: UploadTask[]; onDismiss: () 
     </section>
   );
 }
-

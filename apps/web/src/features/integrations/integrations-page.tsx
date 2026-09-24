@@ -11,17 +11,38 @@ import { PageHeader } from '@/components/app/page-header';
 import { StatusBadge } from '@/components/app/status-badge';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { SkeletonRows } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { api, errorMessage } from '@/lib/api';
 import { applyServerErrors } from '@/lib/forms';
 import { useAccess } from '@/lib/session';
@@ -42,7 +63,10 @@ export function IntegrationsPage() {
   const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
   const [rotating, setRotating] = useState<ApiKeyRow | null>(null);
   const invalidate = () => void qc.invalidateQueries({ queryKey: keys.list });
-  const revoke = useMutation({ mutationFn: (id: string) => api.post(`/api-keys/${id}/revoke`), onSuccess: invalidate });
+  const revoke = useMutation({
+    mutationFn: (id: string) => api.post(`/api-keys/${id}/revoke`),
+    onSuccess: invalidate,
+  });
   const rotate = useMutation({
     mutationFn: (id: string) => api.post<ApiKeyCreated>(`/api-keys/${id}/rotate`),
     onSuccess: (k) => {
@@ -59,9 +83,11 @@ export function IntegrationsPage() {
         description="API keys let other systems use the Daliz API on this workspace’s behalf, limited to the scopes you choose."
         actions={
           editable ? (
-            <Button onClick={() => setCreating(true)}>
-              <Plus /> New API key
-            </Button>
+            <OnlineOnly>
+              <Button onClick={() => setCreating(true)}>
+                <Plus /> New API key
+              </Button>
+            </OnlineOnly>
           ) : null
         }
       />
@@ -111,19 +137,38 @@ export function IntegrationsPage() {
                           {s}
                         </Badge>
                       ))}
-                      {k.scopes.length > 6 ? <Badge variant="outline">+{k.scopes.length - 6}</Badge> : null}
+                      {k.scopes.length > 6 ? (
+                        <Badge variant="outline">+{k.scopes.length - 6}</Badge>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={k.status === 'active' ? 'active' : k.status === 'expired' ? 'pending' : 'disabled'} label={humanize(k.status)} />
+                    <StatusBadge
+                      status={
+                        k.status === 'active'
+                          ? 'active'
+                          : k.status === 'expired'
+                            ? 'pending'
+                            : 'disabled'
+                      }
+                      label={humanize(k.status)}
+                    />
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{k.expiresAt ? formatDate(k.expiresAt) : 'Never'}</TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{k.lastUsedAt ? ago(k.lastUsedAt) : 'Never'}</TableCell>
+                  <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">
+                    {k.expiresAt ? formatDate(k.expiresAt) : 'Never'}
+                  </TableCell>
+                  <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">
+                    {k.lastUsedAt ? ago(k.lastUsedAt) : 'Never'}
+                  </TableCell>
                   <TableCell>
                     {editable && k.status !== 'revoked' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${k.name}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Actions for ${k.name}`}
+                          >
                             <Ellipsis />
                           </Button>
                         </DropdownMenuTrigger>
@@ -185,8 +230,18 @@ export function IntegrationsPage() {
 
 type Values = z.input<typeof apiKeyCreateSchema>;
 
-function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (k: ApiKeyCreated) => void }) {
-  const scopes = useQuery({ queryKey: keys.scopes, queryFn: () => api.get<string[]>('/api-keys/scopes'), staleTime: Infinity });
+function CreateKeyDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (k: ApiKeyCreated) => void;
+}) {
+  const scopes = useQuery({
+    queryKey: keys.scopes,
+    queryFn: () => api.get<string[]>('/api-keys/scopes'),
+    staleTime: Infinity,
+  });
   const [error, setError] = useState<string | null>(null);
   const form = useForm<Values, unknown, z.output<typeof apiKeyCreateSchema>>({
     resolver: zodResolver(apiKeyCreateSchema),
@@ -207,7 +262,12 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
       const created = await api.post<ApiKeyCreated>('/api-keys', v);
       onCreated(created);
     } catch (e) {
-      if (!applyServerErrors(e, form.setError, ['name', 'scopes', 'expiresInDays'], { toastUnmatched: false })) setError(errorMessage(e));
+      if (
+        !applyServerErrors(e, form.setError, ['name', 'scopes', 'expiresInDays'], {
+          toastUnmatched: false,
+        })
+      )
+        setError(errorMessage(e));
     }
   });
 
@@ -217,14 +277,26 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
         <form onSubmit={onSubmit} className="grid gap-5" noValidate>
           <DialogHeader>
             <DialogTitle>New API key</DialogTitle>
-            <DialogDescription>Grant only what the integration needs. Creating a key requires confirming your identity.</DialogDescription>
+            <DialogDescription>
+              Grant only what the integration needs. Creating a key requires confirming your
+              identity.
+            </DialogDescription>
           </DialogHeader>
           {error ? <Alert variant="destructive" title={error} /> : null}
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
-            <FormField label="Name" required error={form.formState.errors.name?.message} hint="e.g. “Accounting export”">
+            <FormField
+              label="Name"
+              required
+              error={form.formState.errors.name?.message}
+              hint="e.g. “Accounting export”"
+            >
               <Input autoFocus maxLength={80} {...form.register('name')} />
             </FormField>
-            <FormField label="Expires after (days)" required error={form.formState.errors.expiresInDays?.message}>
+            <FormField
+              label="Expires after (days)"
+              required
+              error={form.formState.errors.expiresInDays?.message}
+            >
               <Input type="number" min={1} max={365} {...form.register('expiresInDays')} />
             </FormField>
           </div>
@@ -233,7 +305,10 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
             name="scopes"
             render={({ field, fieldState }) => {
               const selected = new Set(field.value);
-              const toggle = (list: string[], on: boolean) => field.onChange((scopes.data ?? []).filter((s) => (list.includes(s) ? on : selected.has(s))));
+              const toggle = (list: string[], on: boolean) =>
+                field.onChange(
+                  (scopes.data ?? []).filter((s) => (list.includes(s) ? on : selected.has(s))),
+                );
               return (
                 <fieldset className="grid gap-2">
                   <legend className="mb-1 text-sm font-medium">Scopes</legend>
@@ -246,12 +321,24 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
                         return (
                           <div key={group} className="grid gap-1.5">
                             <label className="flex items-center gap-2 text-sm font-semibold">
-                              <Checkbox checked={count === 0 ? false : count === list.length ? true : 'indeterminate'} onCheckedChange={(c) => toggle(list, c === true)} />
+                              <Checkbox
+                                checked={
+                                  count === 0
+                                    ? false
+                                    : count === list.length
+                                      ? true
+                                      : 'indeterminate'
+                                }
+                                onCheckedChange={(c) => toggle(list, c === true)}
+                              />
                               {humanize(group)}
                             </label>
                             {list.map((s) => (
                               <label key={s} className="flex items-center gap-2 pl-6 text-sm">
-                                <Checkbox checked={selected.has(s)} onCheckedChange={(c) => toggle([s], c === true)} />
+                                <Checkbox
+                                  checked={selected.has(s)}
+                                  onCheckedChange={(c) => toggle([s], c === true)}
+                                />
                                 <code className="font-mono text-xs">{s}</code>
                               </label>
                             ))}
@@ -260,7 +347,9 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
                       })}
                     </div>
                   )}
-                  {fieldState.error ? <p className="text-xs text-destructive">{fieldState.error.message}</p> : null}
+                  {fieldState.error ? (
+                    <p className="text-xs text-destructive">{fieldState.error.message}</p>
+                  ) : null}
                 </fieldset>
               );
             }}
@@ -289,11 +378,19 @@ function SecretDialog({ apiKey, onClose }: { apiKey: ApiKeyCreated; onClose: () 
           <DialogTitle>Copy your new secret</DialogTitle>
           <DialogDescription>{apiKey.name}</DialogDescription>
         </DialogHeader>
-        <Alert variant="warning" icon={<ShieldAlert aria-hidden />} title="You won’t see this secret again">
-          Store it in your integration’s secret manager now. If it’s lost, rotate the key to get a new one.
+        <Alert
+          variant="warning"
+          icon={<ShieldAlert aria-hidden />}
+          title="You won’t see this secret again"
+        >
+          Store it in your integration’s secret manager now. If it’s lost, rotate the key to get a
+          new one.
         </Alert>
         <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all select-all" aria-label="API key secret">
+          <code
+            className="min-w-0 flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all select-all"
+            aria-label="API key secret"
+          >
             {apiKey.secret}
           </code>
           <Button
@@ -316,7 +413,8 @@ function SecretDialog({ apiKey, onClose }: { apiKey: ApiKeyCreated; onClose: () 
           Use it as <code className="font-mono">Authorization: Bearer &lt;secret&gt;</code>.
         </p>
         <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={saved} onCheckedChange={(c) => setSaved(c === true)} /> I’ve stored the secret somewhere safe
+          <Checkbox checked={saved} onCheckedChange={(c) => setSaved(c === true)} /> I’ve stored the
+          secret somewhere safe
         </label>
         <DialogFooter>
           <Button onClick={onClose} disabled={!saved}>

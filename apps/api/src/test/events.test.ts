@@ -70,6 +70,10 @@ describe('events, reminders, notifications and realtime', () => {
       const after = (await range('2026-11-01T00:00:00Z', '2026-12-31T00:00:00Z')).data.filter((o) => o.eventId === created.data.eventId);
       expect(after).toHaveLength(5);
       expect(after.find((o) => o.occurrenceStart === second!.occurrenceStart)!.start).toBe('2026-11-05T18:00:00.000Z');
+      // Opt-in: the calendar can show the cancelled occurrence struck through.
+      const withCancelled = (await manager.get<EventOccurrenceRow[]>('/events?from=2026-11-01T00:00:00Z&to=2026-12-31T00:00:00Z&includeCancelled=true')).data.filter((o) => o.eventId === created.data.eventId);
+      expect(withCancelled).toHaveLength(6);
+      expect(withCancelled.filter((o) => o.status === 'cancelled').map((o) => o.occurrenceStart)).toEqual([first!.occurrenceStart]);
       expect((await manager.post(`/events/${created.data.eventId}/occurrences`, { occurrenceStart: '2026-11-03T14:00:00Z', cancelled: true })).status).toBe(400);
     });
 
@@ -97,6 +101,15 @@ describe('events, reminders, notifications and realtime', () => {
   });
 
   describe('notifications', () => {
+    it('writes event times in the event\'s own time zone', async () => {
+      await manager.post('/events', { title: 'Board call', startsAt: '2026-11-02T14:00:00Z', endsAt: '2026-11-02T15:00:00Z', timezone: 'America/New_York', attendeeIds: [employeeId] });
+      await manager.post('/events', { title: 'Offsite day', startsAt: '2026-11-04T05:00:00Z', endsAt: '2026-11-05T05:00:00Z', allDay: true, timezone: 'America/New_York', attendeeIds: [employeeId] });
+      await settle();
+      const list = await notificationsOf(employee);
+      expect(list.find((n) => n.title.includes('Board call'))!.body).toBe('Mon, Nov 2, 2026, 9:00 AM EST');
+      expect(list.find((n) => n.title.includes('Offsite day'))!.body).toBe('Wed, Nov 4, 2026');
+    });
+
     it('notifies invitees, tracks unread state, and honours preferences', async () => {
       const before = (await employee.get<{ unread: number }>('/notifications/unread-count')).data.unread;
       await manager.post('/events', { title: 'Budget review', startsAt: inMinutes(300).toISOString(), endsAt: inMinutes(360).toISOString(), timezone: 'UTC', attendeeIds: [employeeId] });
@@ -104,6 +117,8 @@ describe('events, reminders, notifications and realtime', () => {
       const list = await notificationsOf(employee);
       const invite = list.find((n) => n.type === 'event.invited' && n.title.includes('Budget review'))!;
       expect(invite.link).toMatch(/^\/events\?event=/);
+      const page = await employee.get<NotificationRow[]>('/notifications');
+      expect((page.body as { meta: { unread: number } }).meta.unread).toBe(before + 1);
       expect((await employee.get<{ unread: number }>('/notifications/unread-count')).data.unread).toBe(before + 1);
       expect((await employee.post<{ unread: number }>('/notifications/read', { ids: [invite.id] })).data.unread).toBe(before);
 

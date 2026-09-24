@@ -26,7 +26,7 @@ export class EventsController {
   @RequirePermissions('events.read')
   @Get('events')
   occurrences(@ZQuery(eventRangeSchema) q: z.infer<typeof eventRangeSchema>) {
-    return this.events.occurrences(q.from, q.to, q.mine);
+    return this.events.occurrences(q.from, q.to, q.mine, q.includeCancelled);
   }
 
   @RequirePermissions('events.read')

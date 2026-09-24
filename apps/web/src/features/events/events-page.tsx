@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorState } from '@/components/app/error-state';
 import { PageHeader } from '@/components/app/page-header';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -89,14 +90,29 @@ export function EventsPage() {
   const to = useMemo(() => startOfDayUtc(addDays(range.startDay, range.days), zone), [range, zone]);
   const occurrences = useOccurrences(from, to, mine);
 
-  const open = (o: EventOccurrenceRow) => setParam({ event: o.eventId, occ: o.recurring ? o.occurrenceStart : null, ostart: o.start, oend: o.end, otitle: o.title });
+  const open = (o: EventOccurrenceRow) =>
+    setParam({
+      event: o.eventId,
+      occ: o.recurring ? o.occurrenceStart : null,
+      ostart: o.start,
+      oend: o.end,
+      otitle: o.title,
+    });
   const eventId = params.get('event');
   const occRef =
     eventId && params.get('occ')
-      ? { occurrenceStart: params.get('occ')!, start: params.get('ostart') ?? params.get('occ')!, end: params.get('oend') ?? params.get('occ')!, title: params.get('otitle') ?? '' }
+      ? {
+          occurrenceStart: params.get('occ')!,
+          start: params.get('ostart') ?? params.get('occ')!,
+          end: params.get('oend') ?? params.get('occ')!,
+          title: params.get('otitle') ?? '',
+        }
       : null;
 
-  const step = (dir: -1 | 1) => setAnchor((a) => (view === 'month' ? addMonths(a, dir) : addDays(a, dir * (view === 'week' ? 7 : 30))));
+  const step = (dir: -1 | 1) =>
+    setAnchor((a) =>
+      view === 'month' ? addMonths(a, dir) : addDays(a, dir * (view === 'week' ? 7 : 30)),
+    );
   const title =
     view === 'month'
       ? formatIsoDate(startOfMonth(anchor), { month: 'long', year: 'numeric' }, fmt.locale)
@@ -109,13 +125,18 @@ export function EventsPage() {
         description={`Calendar and reminders · times shown in ${zone.replace(/_/g, ' ')}`}
         actions={
           canWrite('events.create') && tab === 'calendar' ? (
-            <Button onClick={() => setCreating(null)}>
-              <Plus /> New event
-            </Button>
+            <OnlineOnly>
+              <Button onClick={() => setCreating(null)}>
+                <Plus /> New event
+              </Button>
+            </OnlineOnly>
           ) : null
         }
       />
-      <Tabs value={tab} onValueChange={(v) => setParam({ tab: v === 'reminders' ? 'reminders' : null })}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setParam({ tab: v === 'reminders' ? 'reminders' : null })}
+      >
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
@@ -136,7 +157,11 @@ export function EventsPage() {
             </Button>
             <div className="ml-auto flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <Checkbox id="mine-only" checked={mine} onCheckedChange={(c) => setMine(c === true)} />
+                <Checkbox
+                  id="mine-only"
+                  checked={mine}
+                  onCheckedChange={(c) => setMine(c === true)}
+                />
                 <Label htmlFor="mine-only" className="font-normal">
                   Only mine
                 </Label>
@@ -160,9 +185,20 @@ export function EventsPage() {
           ) : occurrences.isPending ? (
             <Skeleton className="h-[480px] w-full" />
           ) : view === 'month' ? (
-            <MonthView startDay={range.startDay} anchor={anchor} occurrences={occurrences.data} onOpen={open} onCreate={canWrite('events.create') ? (d) => setCreating(d) : undefined} />
+            <MonthView
+              startDay={range.startDay}
+              anchor={anchor}
+              occurrences={occurrences.data}
+              onOpen={open}
+              onCreate={canWrite('events.create') ? (d) => setCreating(d) : undefined}
+            />
           ) : view === 'week' ? (
-            <WeekView startDay={range.startDay} occurrences={occurrences.data} onOpen={open} onCreate={canWrite('events.create') ? (d) => setCreating(d) : undefined} />
+            <WeekView
+              startDay={range.startDay}
+              occurrences={occurrences.data}
+              onOpen={open}
+              onCreate={canWrite('events.create') ? (d) => setCreating(d) : undefined}
+            />
           ) : (
             <AgendaView occurrences={occurrences.data} onOpen={open} />
           )}
@@ -171,8 +207,14 @@ export function EventsPage() {
           <RemindersPanel />
         </TabsContent>
       </Tabs>
-      {creating !== undefined ? <EventDialog defaultDay={creating ?? undefined} onClose={() => setCreating(undefined)} /> : null}
-      <EventDrawer eventId={eventId} occurrence={occRef} onClose={() => setParam({ event: null, occ: null, ostart: null, oend: null, otitle: null })} />
+      {creating !== undefined ? (
+        <EventDialog defaultDay={creating ?? undefined} onClose={() => setCreating(undefined)} />
+      ) : null}
+      <EventDrawer
+        eventId={eventId}
+        occurrence={occRef}
+        onClose={() => setParam({ event: null, occ: null, ostart: null, oend: null, otitle: null })}
+      />
     </>
   );
 }
@@ -192,12 +234,21 @@ function useByDay(occurrences: EventOccurrenceRow[]) {
         d = addDays(d, 1);
       }
     }
-    for (const list of map.values()) list.sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start));
+    for (const list of map.values())
+      list.sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start));
     return map;
   }, [occurrences, timezone]);
 }
 
-function Chip({ o, onOpen, compact }: { o: EventOccurrenceRow; onOpen: () => void; compact?: boolean }) {
+function Chip({
+  o,
+  onOpen,
+  compact,
+}: {
+  o: EventOccurrenceRow;
+  onOpen: () => void;
+  compact?: boolean;
+}) {
   const fmt = useTenantFormat();
   const cancelled = o.status === 'cancelled';
   return (
@@ -212,23 +263,49 @@ function Chip({ o, onOpen, compact }: { o: EventOccurrenceRow; onOpen: () => voi
       )}
       title={o.title}
     >
-      {!o.allDay && !compact ? <span className="shrink-0 tabular-nums opacity-80">{formatTime(o.start, fmt.timezone, fmt.locale)}</span> : null}
+      {!o.allDay && !compact ? (
+        <span className="shrink-0 tabular-nums opacity-80">
+          {formatTime(o.start, fmt.timezone, fmt.locale)}
+        </span>
+      ) : null}
       <span className="truncate">{o.title}</span>
-      {o.recurring ? <Repeat className="ml-auto size-3 shrink-0 opacity-60" aria-label="Recurring" /> : null}
+      {o.recurring ? (
+        <Repeat className="ml-auto size-3 shrink-0 opacity-60" aria-label="Recurring" />
+      ) : null}
     </button>
   );
 }
 
-function MonthView({ startDay, anchor, occurrences, onOpen, onCreate }: { startDay: string; anchor: string; occurrences: EventOccurrenceRow[]; onOpen: (o: EventOccurrenceRow) => void; onCreate?: (day: string) => void }) {
+function MonthView({
+  startDay,
+  anchor,
+  occurrences,
+  onOpen,
+  onCreate,
+}: {
+  startDay: string;
+  anchor: string;
+  occurrences: EventOccurrenceRow[];
+  onOpen: (o: EventOccurrenceRow) => void;
+  onCreate?: (day: string) => void;
+}) {
   const fmt = useTenantFormat();
   const byDay = useByDay(occurrences);
   const today = fmt.today();
   const days = Array.from({ length: 42 }, (_, i) => addDays(startDay, i));
   return (
     <div className="overflow-x-auto">
-      <div role="grid" aria-label="Month" className="grid min-w-[720px] grid-cols-7 overflow-hidden rounded-xl border">
+      <div
+        role="grid"
+        aria-label="Month"
+        className="grid min-w-[720px] grid-cols-7 overflow-hidden rounded-xl border"
+      >
         {days.slice(0, 7).map((d) => (
-          <div key={d} role="columnheader" className="border-b bg-muted/40 px-2 py-1.5 text-xs font-medium text-muted-foreground">
+          <div
+            key={d}
+            role="columnheader"
+            className="border-b bg-muted/40 px-2 py-1.5 text-xs font-medium text-muted-foreground"
+          >
             {formatIsoDate(d, { weekday: 'short' }, fmt.locale)}
           </div>
         ))}
@@ -236,24 +313,49 @@ function MonthView({ startDay, anchor, occurrences, onOpen, onCreate }: { startD
           const list = byDay.get(d) ?? [];
           const inMonth = d.slice(0, 7) === anchor.slice(0, 7);
           return (
-            <div key={d} role="gridcell" aria-label={formatIsoDate(d, { dateStyle: 'full' }, fmt.locale)} className={cn('group min-h-28 border-r border-b p-1.5 [&:nth-child(7n)]:border-r-0', !inMonth && 'bg-muted/30')}>
+            <div
+              key={d}
+              role="gridcell"
+              aria-label={formatIsoDate(d, { dateStyle: 'full' }, fmt.locale)}
+              className={cn(
+                'group min-h-28 min-w-0 border-r border-b p-1.5 [&:nth-child(7n)]:border-r-0',
+                !inMonth && 'bg-muted/30',
+              )}
+            >
               <div className="mb-1 flex items-center justify-between">
-                <span className={cn('flex size-6 items-center justify-center rounded-full text-xs tabular-nums', d === today ? 'bg-primary font-semibold text-primary-foreground' : inMonth ? '' : 'text-muted-foreground')}>
+                <span
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-full text-xs tabular-nums',
+                    d === today
+                      ? 'bg-primary font-semibold text-primary-foreground'
+                      : inMonth
+                        ? ''
+                        : 'text-muted-foreground',
+                  )}
+                >
                   {Number(d.slice(8))}
                 </span>
                 {onCreate ? (
-                  <Button variant="ghost" size="icon-sm" className="size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label={`New event on ${formatIsoDate(d, { dateStyle: 'medium' }, fmt.locale)}`} onClick={() => onCreate(d)}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`New event on ${formatIsoDate(d, { dateStyle: 'medium' }, fmt.locale)}`}
+                    onClick={() => onCreate(d)}
+                  >
                     <Plus className="size-3.5" />
                   </Button>
                 ) : null}
               </div>
-              <ul className="grid gap-1">
+              <ul className="grid grid-cols-1 gap-1">
                 {list.slice(0, 4).map((o) => (
-                  <li key={o.occurrenceId}>
+                  <li key={o.occurrenceId} className="min-w-0">
                     <Chip o={o} onOpen={() => onOpen(o)} />
                   </li>
                 ))}
-                {list.length > 4 ? <li className="px-1.5 text-xs text-muted-foreground">+{list.length - 4} more</li> : null}
+                {list.length > 4 ? (
+                  <li className="px-1.5 text-xs text-muted-foreground">+{list.length - 4} more</li>
+                ) : null}
               </ul>
             </div>
           );
@@ -284,13 +386,24 @@ function lanes(list: EventOccurrenceRow[]): Map<string, { lane: number; count: n
   for (const o of sorted) {
     if (cluster.length && o.start >= clusterEnd) flush();
     cluster.push(o);
-    if (o.end > clusterEnd || cluster.length === 1) clusterEnd = o.end > clusterEnd ? o.end : clusterEnd;
+    if (o.end > clusterEnd || cluster.length === 1)
+      clusterEnd = o.end > clusterEnd ? o.end : clusterEnd;
   }
   if (cluster.length) flush();
   return result;
 }
 
-function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: string; occurrences: EventOccurrenceRow[]; onOpen: (o: EventOccurrenceRow) => void; onCreate?: (day: string) => void }) {
+function WeekView({
+  startDay,
+  occurrences,
+  onOpen,
+  onCreate,
+}: {
+  startDay: string;
+  occurrences: EventOccurrenceRow[];
+  onOpen: (o: EventOccurrenceRow) => void;
+  onCreate?: (day: string) => void;
+}) {
   const fmt = useTenantFormat();
   const zone = fmt.timezone;
   const byDay = useByDay(occurrences);
@@ -308,7 +421,13 @@ function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: strin
         <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b bg-muted/40">
           <div />
           {days.map((d) => (
-            <div key={d} className={cn('border-l px-2 py-1.5 text-xs font-medium', d === today ? 'text-primary' : 'text-muted-foreground')}>
+            <div
+              key={d}
+              className={cn(
+                'border-l px-2 py-1.5 text-xs font-medium',
+                d === today ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
               {formatIsoDate(d, { weekday: 'short', day: 'numeric' }, fmt.locale)}
             </div>
           ))}
@@ -326,10 +445,17 @@ function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: strin
           ))}
         </div>
         <div className="relative max-h-[600px] overflow-y-auto">
-          <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))]" style={{ height: HOUR_PX * 24 }}>
+          <div
+            className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))]"
+            style={{ height: HOUR_PX * 24 }}
+          >
             <div className="relative">
               {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums" style={{ top: h * HOUR_PX }}>
+                <div
+                  key={h}
+                  className="absolute right-1 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums"
+                  style={{ top: h * HOUR_PX }}
+                >
                   {h === 0 ? '' : `${String(h).padStart(2, '0')}:00`}
                 </div>
               ))}
@@ -341,15 +467,26 @@ function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: strin
                 <div
                   key={d}
                   className="relative border-l"
-                  style={{ backgroundImage: `repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px ${HOUR_PX}px)` }}
+                  style={{
+                    backgroundImage: `repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px ${HOUR_PX}px)`,
+                  }}
                   onDoubleClick={() => onCreate?.(d)}
                 >
-                  {d === today ? <div className="absolute inset-x-0 z-10 h-px bg-destructive" style={{ top: (nowMin / 60) * HOUR_PX }} aria-hidden /> : null}
+                  {d === today ? (
+                    <div
+                      className="absolute inset-x-0 z-10 h-px bg-destructive"
+                      style={{ top: (nowMin / 60) * HOUR_PX }}
+                      aria-hidden
+                    />
+                  ) : null}
                   {timed.map((o) => {
                     const startDayKey = dayKey(o.start, zone);
                     const endMs = new Date(o.end).getTime();
                     const startMin = startDayKey < d ? 0 : minutesOfDay(o.start, zone);
-                    const endMin = dayKey(new Date(endMs - 1), zone) > d ? 24 * 60 : minutesOfDay(o.end, zone) || 24 * 60;
+                    const endMin =
+                      dayKey(new Date(endMs - 1), zone) > d
+                        ? 24 * 60
+                        : minutesOfDay(o.end, zone) || 24 * 60;
                     const l = laneMap.get(o.occurrenceId) ?? { lane: 0, count: 1 };
                     return (
                       <button
@@ -370,7 +507,8 @@ function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: strin
                       >
                         <div className="truncate font-medium">{o.title}</div>
                         <div className="truncate opacity-80">
-                          {formatTime(o.start, zone, fmt.locale)} – {formatTime(o.end, zone, fmt.locale)}
+                          {formatTime(o.start, zone, fmt.locale)} –{' '}
+                          {formatTime(o.end, zone, fmt.locale)}
                         </div>
                       </button>
                     );
@@ -385,7 +523,13 @@ function WeekView({ startDay, occurrences, onOpen, onCreate }: { startDay: strin
   );
 }
 
-function AgendaView({ occurrences, onOpen }: { occurrences: EventOccurrenceRow[]; onOpen: (o: EventOccurrenceRow) => void }) {
+function AgendaView({
+  occurrences,
+  onOpen,
+}: {
+  occurrences: EventOccurrenceRow[];
+  onOpen: (o: EventOccurrenceRow) => void;
+}) {
   const fmt = useTenantFormat();
   const zone = fmt.timezone;
   const groups = useMemo(() => {
@@ -396,22 +540,49 @@ function AgendaView({ occurrences, onOpen }: { occurrences: EventOccurrenceRow[]
     }
     return [...m.entries()];
   }, [occurrences, zone]);
-  if (groups.length === 0) return <Card><EmptyState icon={CalendarDays} title="Nothing scheduled in the next 30 days" /></Card>;
+  if (groups.length === 0)
+    return (
+      <Card>
+        <EmptyState icon={CalendarDays} title="Nothing scheduled in the next 30 days" />
+      </Card>
+    );
   return (
     <Card className="divide-y overflow-hidden">
       {groups.map(([d, list]) => (
-        <section key={d} aria-label={formatIsoDate(d, { dateStyle: 'full' }, fmt.locale)} className="grid gap-2 p-4 sm:grid-cols-[180px_minmax(0,1fr)]">
-          <h3 className={cn('text-sm font-semibold', d === fmt.today() && 'text-primary')}>{formatIsoDate(d, { weekday: 'long', month: 'short', day: 'numeric' }, fmt.locale)}</h3>
+        <section
+          key={d}
+          aria-label={formatIsoDate(d, { dateStyle: 'full' }, fmt.locale)}
+          className="grid gap-2 p-4 sm:grid-cols-[180px_minmax(0,1fr)]"
+        >
+          <h3 className={cn('text-sm font-semibold', d === fmt.today() && 'text-primary')}>
+            {formatIsoDate(d, { weekday: 'long', month: 'short', day: 'numeric' }, fmt.locale)}
+          </h3>
           <ul className="grid gap-1.5">
             {list.map((o) => (
               <li key={o.occurrenceId}>
-                <button type="button" onClick={() => onOpen(o)} className={cn('flex w-full items-center gap-3 rounded-md border-l-[3px] px-3 py-2 text-left text-sm outline-none hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring', KIND_TONE[o.kind], o.status === 'cancelled' && 'line-through opacity-60')}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(o)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-md border-l-[3px] px-3 py-2 text-left text-sm outline-none hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring',
+                    KIND_TONE[o.kind],
+                    o.status === 'cancelled' && 'line-through opacity-60',
+                  )}
+                >
                   <span className="w-28 shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {o.allDay ? 'All day' : `${formatTime(o.start, zone, fmt.locale)} – ${formatTime(o.end, zone, fmt.locale)}`}
+                    {o.allDay
+                      ? 'All day'
+                      : `${formatTime(o.start, zone, fmt.locale)} – ${formatTime(o.end, zone, fmt.locale)}`}
                   </span>
                   <span className="min-w-0 flex-1 truncate font-medium">{o.title}</span>
-                  {o.location ? <span className="hidden truncate text-xs text-muted-foreground sm:inline">{o.location}</span> : null}
-                  {o.recurring ? <Repeat className="size-3.5 text-muted-foreground" aria-label="Recurring" /> : null}
+                  {o.location ? (
+                    <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                      {o.location}
+                    </span>
+                  ) : null}
+                  {o.recurring ? (
+                    <Repeat className="size-3.5 text-muted-foreground" aria-label="Recurring" />
+                  ) : null}
                 </button>
               </li>
             ))}

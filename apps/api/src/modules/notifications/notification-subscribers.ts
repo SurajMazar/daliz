@@ -27,8 +27,17 @@ export class NotificationSubscribers implements OnModuleInit {
     return u?.name ?? 'Someone';
   }
 
-  private when(iso: string): string {
-    return new Date(iso).toUTCString().replace(':00 GMT', ' UTC');
+  /** "Thu, Oct 1, 2026, 7:00 AM EDT" in the event's own time zone (date only for all-day events). */
+  private when(e: { startsAt: string; timezone: string; allDay: boolean }): string {
+    const date = new Date(e.startsAt);
+    const opts: Intl.DateTimeFormatOptions = e.allDay
+      ? { timeZone: e.timezone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }
+      : { timeZone: e.timezone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
+    try {
+      return new Intl.DateTimeFormat('en-US', opts).format(date);
+    } catch {
+      return new Intl.DateTimeFormat('en-US', { ...opts, timeZone: 'UTC' }).format(date);
+    }
   }
 
   onModuleInit(): void {
@@ -53,13 +62,13 @@ export class NotificationSubscribers implements OnModuleInit {
     });
     this.events.on('event.invited', async (e) => {
       const who = await this.actorName(e.tenantId, e.actorId);
-      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.invited', title: `${who} invited you to “${e.title}”`, body: this.when(e.startsAt), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
+      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.invited', title: `${who} invited you to “${e.title}”`, body: this.when(e), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
     });
     this.events.on('event.updated', async (e) => {
-      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.updated', title: `“${e.title}” was updated`, body: this.when(e.startsAt), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
+      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.updated', title: `“${e.title}” was updated`, body: this.when(e), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
     });
     this.events.on('event.cancelled', async (e) => {
-      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.cancelled', title: `“${e.title}” was cancelled`, body: this.when(e.startsAt), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
+      await this.notifications.notify(e.tenantId, { userIds: e.attendeeIds, type: 'event.cancelled', title: `“${e.title}” was cancelled`, body: this.when(e), link: `/events?event=${e.eventId}`, data: { eventId: e.eventId } });
     });
     this.events.on('accounting.entry_submitted', async (e) => {
       const db = await this.connections.get(e.tenantId);

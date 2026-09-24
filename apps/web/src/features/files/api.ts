@@ -1,5 +1,14 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { FileRow, FileShareRow, FileVersionRow, FolderContents, FolderRow, SignedUrl, StorageUsage } from '@daliz/shared';
+import type {
+  FileRow,
+  FileShareRow,
+  FileVersionRow,
+  FolderContents,
+  FolderRow,
+  SignedUrl,
+  StorageUsage,
+} from '@daliz/shared';
+import { cachedQuery } from '@/offline/cache';
 import { api, type Query } from '@/lib/api';
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -18,36 +27,53 @@ export type Item = { kind: 'folder'; row: FolderRow } | { kind: 'file'; row: Fil
 export function useFolderContents(q: Query, enabled = true) {
   return useQuery({
     queryKey: filesKeys.contents(q),
-    queryFn: () => api.get<FolderContents>('/files', q),
+    queryFn: () => cachedQuery(filesKeys.contents(q), () => api.get<FolderContents>('/files', q)),
     placeholderData: keepPreviousData,
     enabled,
     // Poll while any file is still being scanned for malware.
-    refetchInterval: (query) => (query.state.data?.files.some((f) => f.scanStatus === 'pending') ? 3000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.files.some((f) => f.scanStatus === 'pending') ? 3000 : false,
   });
 }
 
 export function useStorageUsage() {
-  return useQuery({ queryKey: filesKeys.usage, queryFn: () => api.get<StorageUsage>('/files/usage') });
+  return useQuery({
+    queryKey: filesKeys.usage,
+    queryFn: () => api.get<StorageUsage>('/files/usage'),
+  });
 }
 
 export function useTrash() {
-  return useQuery({ queryKey: filesKeys.trash, queryFn: () => api.get<{ folders: FolderRow[]; files: FileRow[] }>('/files/trash') });
+  return useQuery({
+    queryKey: filesKeys.trash,
+    queryFn: () => api.get<{ folders: FolderRow[]; files: FileRow[] }>('/files/trash'),
+  });
 }
 
 export function useVersions(id: string | null) {
-  return useQuery({ queryKey: filesKeys.versions(id ?? ''), queryFn: () => api.get<FileVersionRow[]>(`/files/${id}/versions`), enabled: !!id });
+  return useQuery({
+    queryKey: filesKeys.versions(id ?? ''),
+    queryFn: () => api.get<FileVersionRow[]>(`/files/${id}/versions`),
+    enabled: !!id,
+  });
 }
 
 export function useShares(kind: 'file' | 'folder', id: string | null) {
   return useQuery({
     queryKey: filesKeys.shares(kind, id ?? ''),
-    queryFn: () => api.get<FileShareRow[]>(kind === 'file' ? `/files/${id}/shares` : `/files/folders/${id}/shares`),
+    queryFn: () =>
+      api.get<FileShareRow[]>(
+        kind === 'file' ? `/files/${id}/shares` : `/files/folders/${id}/shares`,
+      ),
     enabled: !!id,
   });
 }
 
 export async function downloadFile(id: string, versionId?: string): Promise<void> {
-  const signed = await api.get<SignedUrl>(`/files/${id}/download`, versionId ? { versionId } : undefined);
+  const signed = await api.get<SignedUrl>(
+    `/files/${id}/download`,
+    versionId ? { versionId } : undefined,
+  );
   // The signed URL answers with Content-Disposition: attachment, so the page stays put.
   window.location.assign(signed.url);
 }

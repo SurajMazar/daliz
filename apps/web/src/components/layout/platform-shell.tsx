@@ -11,8 +11,14 @@ import { platformNav } from './nav';
 
 export function PlatformBrand() {
   return (
-    <Link to="/platform" className="flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground" aria-hidden>
+    <Link
+      to="/platform"
+      className="flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span
+        className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
+        aria-hidden
+      >
         <ShieldCheck className="size-4" />
       </span>
       <span className="text-sm font-semibold">Daliz Platform</span>

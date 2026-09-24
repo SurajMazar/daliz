@@ -17,7 +17,15 @@ import { useAccess, useSignOut, useSwitchWorkspace } from '@/lib/session';
 import { useTheme } from '@/lib/theme';
 import type { NavSection } from './nav';
 
-export function CommandPalette({ open, onOpenChange, sections }: { open: boolean; onOpenChange: (o: boolean) => void; sections: NavSection[] }) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+  sections,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  sections: NavSection[];
+}) {
   const navigate = useNavigate();
   const { me } = useAccess();
   const { mode, toggle } = useTheme();
@@ -40,7 +48,9 @@ export function CommandPalette({ open, onOpenChange, sections }: { open: boolean
     fn();
   };
 
-  const otherWorkspaces = me.memberships.filter((m) => m.tenantId !== me.tenant?.id && m.status === 'active');
+  const otherWorkspaces = me.memberships.filter(
+    (m) => m.tenantId !== me.tenant?.id && m.status === 'active',
+  );
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -50,18 +60,28 @@ export function CommandPalette({ open, onOpenChange, sections }: { open: boolean
         {sections.map((s) => (
           <CommandGroup key={s.title ?? 'main'} heading={s.title ?? 'Navigate'}>
             {s.items.map((item) => (
-              <CommandItem key={item.to} value={`${item.label} ${item.keywords ?? ''}`} onSelect={() => run(() => navigate(item.to))}>
+              <CommandItem
+                key={item.to}
+                value={`${item.label} ${item.keywords ?? ''}`}
+                onSelect={() => run(() => navigate(item.to))}
+              >
                 <item.icon /> {item.label}
               </CommandItem>
             ))}
           </CommandGroup>
         ))}
         <CommandGroup heading="Account">
-          <CommandItem value="account profile password sessions" onSelect={() => run(() => navigate('/account'))}>
+          <CommandItem
+            value="account profile password sessions"
+            onSelect={() => run(() => navigate('/account'))}
+          >
             <CircleUser /> Account settings
           </CommandItem>
           {me.platform ? (
-            <CommandItem value="platform console super admin" onSelect={() => run(() => navigate('/platform'))}>
+            <CommandItem
+              value="platform console super admin"
+              onSelect={() => run(() => navigate('/platform'))}
+            >
               <ShieldCheck /> Platform console
             </CommandItem>
           ) : null}
@@ -74,7 +94,9 @@ export function CommandPalette({ open, onOpenChange, sections }: { open: boolean
                 value={`switch workspace ${m.tenantName} ${m.organizationName}`}
                 onSelect={() =>
                   run(() => {
-                    switcher.switchTo(m.tenantId).catch((e: unknown) => toast.error(errorMessage(e)));
+                    switcher
+                      .switchTo(m.tenantId)
+                      .catch((e: unknown) => toast.error(errorMessage(e)));
                   })
                 }
               >
@@ -87,7 +109,8 @@ export function CommandPalette({ open, onOpenChange, sections }: { open: boolean
         <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem value="toggle theme dark light mode appearance" onSelect={() => run(toggle)}>
-            {mode === 'dark' ? <Sun /> : <Moon />} Switch to {mode === 'dark' ? 'light' : 'dark'} mode
+            {mode === 'dark' ? <Sun /> : <Moon />} Switch to {mode === 'dark' ? 'light' : 'dark'}{' '}
+            mode
           </CommandItem>
           <CommandItem value="sign out log out" onSelect={() => run(() => signOut.mutate())}>
             <LogOut /> Sign out

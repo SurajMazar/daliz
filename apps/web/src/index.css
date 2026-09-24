@@ -148,3 +148,10 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Lock screen: page content stays mounted but unreadable and non-interactive. */
+.daliz-locked {
+  filter: blur(14px);
+  pointer-events: none;
+  user-select: none;
+}

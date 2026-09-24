@@ -1,6 +1,7 @@
 import { Outlet, ScrollRestoration } from 'react-router';
 import { Toaster } from 'sonner';
 import { ApiErrorBridge } from '@/components/app/api-error-bridge';
+import { ConnectivityManager } from '@/components/app/connectivity';
 import { MaintenanceScreen } from '@/components/app/maintenance';
 import { StepUpDialog } from '@/components/app/step-up-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -13,6 +14,7 @@ export function Root() {
   return (
     <TooltipProvider delayDuration={300}>
       <ApiErrorBridge />
+      <ConnectivityManager />
       {maintenance !== null ? <MaintenanceScreen message={maintenance} /> : <Outlet />}
       <StepUpDialog />
       <Toaster

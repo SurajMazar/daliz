@@ -12,7 +12,13 @@ type Zoom = 'week' | 'month';
 const DAY_WIDTH: Record<Zoom, number> = { week: 36, month: 12 };
 
 /** Horizontal bars from start → due for every task with at least one date. */
-export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id: string) => void }) {
+export function TimelineView({
+  tasks,
+  onOpen,
+}: {
+  tasks: TaskRow[];
+  onOpen: (id: string) => void;
+}) {
   const fmt = useTenantFormat();
   const today = fmt.today();
   const [zoom, setZoom] = useState<Zoom>('week');
@@ -22,7 +28,11 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
     () =>
       tasks
         .filter((t) => t.startDate || t.dueDate)
-        .map((t) => ({ task: t, start: (t.startDate ?? t.dueDate)!, end: (t.dueDate ?? t.startDate)! }))
+        .map((t) => ({
+          task: t,
+          start: (t.startDate ?? t.dueDate)!,
+          end: (t.dueDate ?? t.startDate)!,
+        }))
         .sort((a, b) => a.start.localeCompare(b.start)),
     [tasks],
   );
@@ -44,7 +54,13 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
   }, [dated, today, zoom]);
 
   if (!range) {
-    return <EmptyState icon={CalendarRange} title="No scheduled tasks" description="Give tasks a start or due date to see them on the timeline." />;
+    return (
+      <EmptyState
+        icon={CalendarRange}
+        title="No scheduled tasks"
+        description="Give tasks a start or due date to see them on the timeline."
+      />
+    );
   }
 
   const width = range.days * dayW;
@@ -52,7 +68,12 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
   const months: { label: string; left: number; width: number }[] = [];
   for (let i = 0; i < days.length; i++) {
     const d = days[i]!;
-    if (i === 0 || d.endsWith('-01')) months.push({ label: formatIsoDate(d, { month: 'short', year: 'numeric' }, fmt.locale), left: i * dayW, width: 0 });
+    if (i === 0 || d.endsWith('-01'))
+      months.push({
+        label: formatIsoDate(d, { month: 'short', year: 'numeric' }, fmt.locale),
+        left: i * dayW,
+        width: 0,
+      });
   }
   months.forEach((m, i) => (m.width = (months[i + 1]?.left ?? width) - m.left));
   const todayLeft = diffDays(range.from, today) * dayW;
@@ -63,12 +84,22 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
         <p className="text-sm text-muted-foreground">
           {dated.length} scheduled task{dated.length === 1 ? '' : 's'}
         </p>
-        <Segmented label="Zoom" value={zoom} onChange={setZoom} options={[{ value: 'week', label: 'Weeks' }, { value: 'month', label: 'Months' }]} />
+        <Segmented
+          label="Zoom"
+          value={zoom}
+          onChange={setZoom}
+          options={[
+            { value: 'week', label: 'Weeks' },
+            { value: 'month', label: 'Months' },
+          ]}
+        />
       </div>
       <div className="overflow-hidden rounded-xl border">
         <div className="flex max-h-[calc(100dvh-18rem)] overflow-auto">
           <div className="sticky left-0 z-20 w-52 shrink-0 border-r bg-card">
-            <div className="flex h-14 items-end border-b px-3 pb-2 text-xs font-medium text-muted-foreground">Task</div>
+            <div className="flex h-14 items-end border-b px-3 pb-2 text-xs font-medium text-muted-foreground">
+              Task
+            </div>
             {dated.map(({ task }) => (
               <button
                 key={task.id}
@@ -85,7 +116,11 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
             <div className="sticky top-0 z-10 h-14 border-b bg-card">
               <div className="relative h-7 border-b">
                 {months.map((m) => (
-                  <div key={m.left} className="absolute top-0 flex h-7 items-center border-l px-2 text-xs font-medium whitespace-nowrap" style={{ left: m.left, width: m.width }}>
+                  <div
+                    key={m.left}
+                    className="absolute top-0 flex h-7 items-center border-l px-2 text-xs font-medium whitespace-nowrap"
+                    style={{ left: m.left, width: m.width }}
+                  >
                     {m.label}
                   </div>
                 ))}
@@ -95,7 +130,14 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
                   const weekday = parseIsoDate(d).getUTCDay();
                   const show = zoom === 'week' || weekday === 1;
                   return show ? (
-                    <div key={d} className={cn('absolute top-0 flex h-7 items-center justify-center text-[10px] text-muted-foreground tabular-nums', d === today && 'font-semibold text-primary')} style={{ left: i * dayW, width: zoom === 'week' ? dayW : dayW * 7 }}>
+                    <div
+                      key={d}
+                      className={cn(
+                        'absolute top-0 flex h-7 items-center justify-center text-[10px] text-muted-foreground tabular-nums',
+                        d === today && 'font-semibold text-primary',
+                      )}
+                      style={{ left: i * dayW, width: zoom === 'week' ? dayW : dayW * 7 }}
+                    >
                       {Number(d.slice(8))}
                     </div>
                   ) : null;
@@ -107,10 +149,20 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
               {zoom === 'week'
                 ? days.map((d, i) => {
                     const wd = parseIsoDate(d).getUTCDay();
-                    return wd === 0 || wd === 6 ? <div key={d} className="absolute top-0 bottom-0 bg-muted/40" style={{ left: i * dayW, width: dayW }} /> : null;
+                    return wd === 0 || wd === 6 ? (
+                      <div
+                        key={d}
+                        className="absolute top-0 bottom-0 bg-muted/40"
+                        style={{ left: i * dayW, width: dayW }}
+                      />
+                    ) : null;
                   })
                 : null}
-              <div className="absolute top-0 bottom-0 w-px bg-primary" style={{ left: todayLeft + dayW / 2 }} aria-hidden />
+              <div
+                className="absolute top-0 bottom-0 w-px bg-primary"
+                style={{ left: todayLeft + dayW / 2 }}
+                aria-hidden
+              />
             </div>
             {dated.map(({ task, start, end }) => {
               const left = diffDays(range.from, start) * dayW;
@@ -128,7 +180,10 @@ export function TimelineView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id:
                     )}
                     style={{ left, width: barW }}
                   >
-                    <span className={cn('h-4 w-1 shrink-0 rounded-full', STATUS_TONE[task.status])} aria-hidden />
+                    <span
+                      className={cn('h-4 w-1 shrink-0 rounded-full', STATUS_TONE[task.status])}
+                      aria-hidden
+                    />
                     <span className="truncate">{barW > 60 ? task.title : ''}</span>
                   </button>
                 </div>

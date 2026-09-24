@@ -1,7 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { inviteUserSchema, type TenantUserRow } from '@daliz/shared';
-import { Ban, Ellipsis, KeyRound, MailPlus, Search, ShieldCheck, ShieldOff, Trash, UserCheck, UserPlus, Users } from 'lucide-react';
+import {
+  Ban,
+  Ellipsis,
+  KeyRound,
+  MailPlus,
+  Search,
+  ShieldCheck,
+  ShieldOff,
+  Trash,
+  UserCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { useId, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -11,10 +23,18 @@ import { PageHeader } from '@/components/app/page-header';
 import { StatusBadge } from '@/components/app/status-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { OnlineOnly } from '@/components/app/online-only';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +49,14 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Pagination } from '@/components/ui/pagination';
 import { SkeletonRows } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tooltip } from '@/components/ui/tooltip';
 import { api, isApiError } from '@/lib/api';
 import { applyServerErrors } from '@/lib/forms';
@@ -55,7 +82,12 @@ export function UsersPage() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search.trim(), 300);
-  const users = useUsers({ page, pageSize: PAGE_SIZE, q: q || undefined, status: status || undefined });
+  const users = useUsers({
+    page,
+    pageSize: PAGE_SIZE,
+    q: q || undefined,
+    status: status || undefined,
+  });
   const [inviteOpen, setInviteOpen] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
 
@@ -66,8 +98,10 @@ export function UsersPage() {
   };
 
   const patchUser = useMutation({
-    mutationFn: (v: { id: string; body: { roleIds?: string[]; status?: 'active' | 'disabled'; version: number } }) =>
-      api.patch<TenantUserRow>(`/users/${v.id}`, v.body),
+    mutationFn: (v: {
+      id: string;
+      body: { roleIds?: string[]; status?: 'active' | 'disabled'; version: number };
+    }) => api.patch<TenantUserRow>(`/users/${v.id}`, v.body),
     onSuccess: invalidate,
     onError: (e) => {
       if (isApiError(e) && e.code === 'VERSION_CONFLICT') invalidate();
@@ -96,16 +130,21 @@ export function UsersPage() {
         description="Invite people to this workspace and control what they can do with roles."
         actions={
           canInvite ? (
-            <Button onClick={() => setInviteOpen(true)}>
-              <UserPlus /> Invite user
-            </Button>
+            <OnlineOnly>
+              <Button onClick={() => setInviteOpen(true)}>
+                <UserPlus /> Invite user
+              </Button>
+            </OnlineOnly>
           ) : null
         }
       />
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               type="search"
               placeholder="Search by name or email…"
@@ -143,7 +182,9 @@ export function UsersPage() {
           <EmptyState
             icon={Users}
             title={q || status ? 'No users match your filters' : 'No users yet'}
-            description={q || status ? 'Try a different search or status.' : 'Invite your team to get started.'}
+            description={
+              q || status ? 'Try a different search or status.' : 'Invite your team to get started.'
+            }
             action={
               canInvite && !q && !status ? (
                 <Button size="sm" onClick={() => setInviteOpen(true)}>
@@ -185,7 +226,11 @@ export function UsersPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">
                             {u.name}
-                            {self ? <span className="ml-2 text-xs font-normal text-muted-foreground">(you)</span> : null}
+                            {self ? (
+                              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                (you)
+                              </span>
+                            ) : null}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{u.email}</div>
                         </div>
@@ -193,7 +238,15 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex max-w-xs flex-wrap gap-1">
-                        {u.roles.length ? u.roles.map((r) => <Badge key={r.id} variant={r.key === 'owner' ? 'info' : 'secondary'}>{r.name}</Badge>) : <span className="text-muted-foreground">—</span>}
+                        {u.roles.length ? (
+                          u.roles.map((r) => (
+                            <Badge key={r.id} variant={r.key === 'owner' ? 'info' : 'secondary'}>
+                              {r.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -227,34 +280,51 @@ export function UsersPage() {
                       {anyAction ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.name}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Actions for ${u.name}`}
+                            >
                               <Ellipsis />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
                             {actions.roles ? (
-                              <DropdownMenuItem onSelect={() => setPending({ kind: 'roles', user: u })}>
+                              <DropdownMenuItem
+                                onSelect={() => setPending({ kind: 'roles', user: u })}
+                              >
                                 <KeyRound /> Edit roles
                               </DropdownMenuItem>
                             ) : null}
                             {actions.resend ? (
-                              <DropdownMenuItem onSelect={() => resend.mutate(u.id)} disabled={resend.isPending}>
+                              <DropdownMenuItem
+                                onSelect={() => resend.mutate(u.id)}
+                                disabled={resend.isPending}
+                              >
                                 <MailPlus /> Resend invitation
                               </DropdownMenuItem>
                             ) : null}
                             {actions.enable ? (
-                              <DropdownMenuItem onSelect={() => setPending({ kind: 'enable', user: u })}>
+                              <DropdownMenuItem
+                                onSelect={() => setPending({ kind: 'enable', user: u })}
+                              >
                                 <UserCheck /> Enable user
                               </DropdownMenuItem>
                             ) : null}
                             {actions.disable || actions.revoke ? <DropdownMenuSeparator /> : null}
                             {actions.disable ? (
-                              <DropdownMenuItem destructive onSelect={() => setPending({ kind: 'disable', user: u })}>
+                              <DropdownMenuItem
+                                destructive
+                                onSelect={() => setPending({ kind: 'disable', user: u })}
+                              >
                                 <Ban /> Disable user
                               </DropdownMenuItem>
                             ) : null}
                             {actions.revoke ? (
-                              <DropdownMenuItem destructive onSelect={() => setPending({ kind: 'revoke', user: u })}>
+                              <DropdownMenuItem
+                                destructive
+                                onSelect={() => setPending({ kind: 'revoke', user: u })}
+                              >
                                 <Trash /> Revoke invitation
                               </DropdownMenuItem>
                             ) : null}
@@ -268,7 +338,9 @@ export function UsersPage() {
             </TableBody>
           </Table>
         )}
-        {users.data && users.data.meta.total > 0 ? <Pagination meta={users.data.meta} onPageChange={setPage} noun="users" /> : null}
+        {users.data && users.data.meta.total > 0 ? (
+          <Pagination meta={users.data.meta} onPageChange={setPage} noun="users" />
+        ) : null}
       </Card>
 
       <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvited={invalidate} />
@@ -277,7 +349,12 @@ export function UsersPage() {
         <EditRolesDialog
           user={pending.user}
           onClose={() => setPending(null)}
-          onSave={(roleIds) => patchUser.mutateAsync({ id: pending.user.id, body: { roleIds, version: pending.user.version } })}
+          onSave={(roleIds) =>
+            patchUser.mutateAsync({
+              id: pending.user.id,
+              body: { roleIds, version: pending.user.version },
+            })
+          }
         />
       ) : null}
 
@@ -290,7 +367,10 @@ export function UsersPage() {
         confirmLabel="Disable user"
         onConfirm={async () => {
           if (!pending) return;
-          await patchUser.mutateAsync({ id: pending.user.id, body: { status: 'disabled', version: pending.user.version } });
+          await patchUser.mutateAsync({
+            id: pending.user.id,
+            body: { status: 'disabled', version: pending.user.version },
+          });
           toast.success(`${pending.user.name} was disabled`);
         }}
       />
@@ -302,7 +382,10 @@ export function UsersPage() {
         confirmLabel="Enable user"
         onConfirm={async () => {
           if (!pending) return;
-          await patchUser.mutateAsync({ id: pending.user.id, body: { status: 'active', version: pending.user.version } });
+          await patchUser.mutateAsync({
+            id: pending.user.id,
+            body: { status: 'active', version: pending.user.version },
+          });
           toast.success(`${pending.user.name} was enabled`);
         }}
       />
@@ -323,7 +406,15 @@ export function UsersPage() {
 
 type InviteValues = z.input<typeof inviteUserSchema>;
 
-function InviteUserDialog({ open, onOpenChange, onInvited }: { open: boolean; onOpenChange: (o: boolean) => void; onInvited: () => void }) {
+function InviteUserDialog({
+  open,
+  onOpenChange,
+  onInvited,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onInvited: () => void;
+}) {
   const roles = useAssignableRoles(open);
   const rolesLabel = useId();
   const form = useForm<InviteValues, unknown, z.output<typeof inviteUserSchema>>({
@@ -357,7 +448,9 @@ function InviteUserDialog({ open, onOpenChange, onInvited }: { open: boolean; on
         <form onSubmit={onSubmit} className="grid gap-5" noValidate>
           <DialogHeader>
             <DialogTitle>Invite a user</DialogTitle>
-            <DialogDescription>They’ll get an email with a link to join this workspace.</DialogDescription>
+            <DialogDescription>
+              They’ll get an email with a link to join this workspace.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Email" error={form.formState.errors.email?.message} required>
@@ -369,29 +462,35 @@ function InviteUserDialog({ open, onOpenChange, onInvited }: { open: boolean; on
           </div>
           <div className="grid gap-2">
             <Label id={rolesLabel}>Roles</Label>
-            {(
-              roles.isError ? (
-                <ErrorState error={roles.error} onRetry={() => void roles.refetch()} className="py-4" />
-              ) : (
-                <Controller
-                  control={form.control}
-                  name="roleIds"
-                  render={({ field, fieldState }) => (
-                    <RoleChecklist
-                      labelledBy={rolesLabel}
-                      roles={roles.data}
-                      loading={roles.isPending}
-                      value={field.value}
-                      onChange={field.onChange}
-                      error={fieldState.error?.message}
-                    />
-                  )}
-                />
-              )
+            {roles.isError ? (
+              <ErrorState
+                error={roles.error}
+                onRetry={() => void roles.refetch()}
+                className="py-4"
+              />
+            ) : (
+              <Controller
+                control={form.control}
+                name="roleIds"
+                render={({ field, fieldState }) => (
+                  <RoleChecklist
+                    labelledBy={rolesLabel}
+                    roles={roles.data}
+                    loading={roles.isPending}
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => close(false)} disabled={form.formState.isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => close(false)}
+              disabled={form.formState.isSubmitting}
+            >
               Cancel
             </Button>
             <Button type="submit" loading={form.formState.isSubmitting}>
@@ -404,7 +503,15 @@ function InviteUserDialog({ open, onOpenChange, onInvited }: { open: boolean; on
   );
 }
 
-function EditRolesDialog({ user, onClose, onSave }: { user: TenantUserRow; onClose: () => void; onSave: (roleIds: string[]) => Promise<unknown> }) {
+function EditRolesDialog({
+  user,
+  onClose,
+  onSave,
+}: {
+  user: TenantUserRow;
+  onClose: () => void;
+  onSave: (roleIds: string[]) => Promise<unknown>;
+}) {
   const roles = useAssignableRoles();
   const labelId = useId();
   const [value, setValue] = useState<string[]>(user.roles.map((r) => r.id));
