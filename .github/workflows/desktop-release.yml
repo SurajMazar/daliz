@@ -1,0 +1,64 @@
+name: Desktop release
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ github.ref_name }}
+      HAS_MAC_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --filter @daliz/desktop...
+      - name: Set version from tag
+        working-directory: apps/desktop
+        run: |
+          V="${VERSION#desktop-v}"
+          node -e "const f='neutralino.config.json';const c=JSON.parse(require('fs').readFileSync(f));c.version='$V';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          echo "APP_VERSION=$V" >> "$GITHUB_ENV"
+      - name: Test launcher logic
+        working-directory: apps/desktop
+        run: pnpm test
+      - name: Build all platforms
+        working-directory: apps/desktop
+        run: pnpm setup && pnpm build
+      # Code signing: each step is skipped unless its secrets are configured.
+      - name: Sign and notarize macOS binaries
+        if: env.HAS_MAC_CERT == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        working-directory: apps/desktop/dist/daliz
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain && security import cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain && security default-keychain -s build.keychain
+          for b in daliz-mac_arm64 daliz-mac_x64 daliz-mac_universal; do codesign --force --options runtime --timestamp --sign "Developer ID Application" "$b"; done
+          zip mac.zip daliz-mac_* resources.neu && xcrun notarytool submit mac.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+      - name: Sign update manifest
+        env:
+          DALIZ_UPDATE_KEY: ${{ secrets.DALIZ_UPDATE_KEY }}
+        working-directory: apps/desktop
+        run: |
+          test -n "$DALIZ_UPDATE_KEY" || { echo "DALIZ_UPDATE_KEY secret is required"; exit 1; }
+          node scripts/sign-update.mjs --resources dist/daliz/resources.neu --version "$APP_VERSION" \
+            --url "https://downloads.daliz.example/desktop/stable/$APP_VERSION/resources.neu" \
+            --notes "Daliz desktop $APP_VERSION" > dist/daliz/manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daliz-desktop-${{ env.APP_VERSION }}
+          path: apps/desktop/dist/daliz
+      # Windows Authenticode signing runs on a Windows runner with the certificate secret
+      # (signtool sign /fd sha256 /tr <timestamp-url> daliz-win_x64.exe); publishing uploads
+      # binaries + resources.neu + manifest.json to the downloads bucket. manifest.json is
+      # uploaded last so clients never see a manifest before its bundle exists.

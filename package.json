@@ -1,0 +1,28 @@
+{
+  "name": "daliz",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.21.0",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "infra:up": "podman compose -f compose.yaml up -d",
+    "infra:down": "podman compose -f compose.yaml down",
+    "build": "pnpm -r --workspace-concurrency=1 --filter '!@daliz/desktop' run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "dev:shared": "pnpm --filter @daliz/shared dev",
+    "dev:api": "pnpm --filter @daliz/api dev",
+    "dev:worker": "pnpm --filter @daliz/api dev:worker",
+    "dev:web": "pnpm --filter @daliz/web dev",
+    "db:migrate": "pnpm --filter @daliz/api db:migrate",
+    "db:seed": "pnpm --filter @daliz/api db:seed",
+    "format": "prettier --write .",
+    "build:desktop": "pnpm --filter @daliz/desktop setup && pnpm --filter @daliz/desktop build"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "5.9.3"
+  }
+}

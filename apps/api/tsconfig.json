@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false,
+    "useDefineForClassFields": false,
+    "isolatedModules": false,
+    "types": ["node", "multer"]
+  },
+  "include": ["src"]
+}

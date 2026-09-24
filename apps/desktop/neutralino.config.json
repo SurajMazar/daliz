@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
+  "applicationId": "com.daliz.desktop",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "port": 0,
+  "documentRoot": "/resources/",
+  "url": "/launcher/index.html",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "tokenSecurity": "one-time",
+  "logging": { "enabled": true, "writeToLogFile": false },
+  "nativeAllowList": [
+    "app.getConfig",
+    "app.exit",
+    "app.restartProcess",
+    "storage.getData",
+    "storage.setData",
+    "filesystem.writeBinaryFile",
+    "filesystem.copy",
+    "filesystem.getStats",
+    "os.showMessageBox",
+    "window.setTitle",
+    "window.focus"
+  ],
+  "nativeBlockList": ["os.execCommand", "os.spawnProcess", "os.updateSpawnedProcess", "extensions.*", "computer.*"],
+  "globalVariables": {
+    "UPDATE_MANIFEST_URL": "https://downloads.daliz.example/desktop/stable/manifest.json",
+    "DEFAULT_WORKSPACE": "",
+    "ALLOW_INSECURE_LOCALHOST": false
+  },
+  "modes": {
+    "window": {
+      "title": "Daliz",
+      "width": 1320,
+      "height": 860,
+      "minWidth": 900,
+      "minHeight": 600,
+      "center": true,
+      "icon": "/resources/icons/appIcon.png",
+      "enableInspector": false,
+      "borderless": false,
+      "maximize": false,
+      "hidden": false,
+      "resizable": true,
+      "exitProcessOnClose": true,
+      "injectGlobals": false,
+      "injectClientLibrary": false
+    }
+  },
+  "cli": {
+    "binaryName": "daliz",
+    "resourcesPath": "/resources/",
+    "extensionsPath": "/extensions/",
+    "clientLibrary": "/resources/js/neutralino.js",
+    "binaryVersion": "6.9.0",
+    "clientVersion": "6.9.0"
+  }
+}

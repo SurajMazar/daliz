@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:* https:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>Daliz</title>
+    <link rel="stylesheet" href="launcher.css" />
+  </head>
+  <body>
+    <main class="shell" aria-live="polite">
+      <header class="brand">
+        <img src="../icons/appIcon.png" alt="" width="44" height="44" />
+        <div>
+          <h1>Daliz</h1>
+          <p class="muted" id="version">Desktop</p>
+        </div>
+      </header>
+
+      <section id="update" class="banner" hidden>
+        <div>
+          <strong id="update-title">Update available</strong>
+          <p id="update-notes" class="muted"></p>
+        </div>
+        <button type="button" id="update-install" class="secondary">Install and restart</button>
+      </section>
+
+      <section id="connecting" class="card" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Opening <strong id="connecting-host"></strong>…</p>
+      </section>
+
+      <section id="offline" class="card" hidden>
+        <h2>Can’t reach your workspace</h2>
+        <p class="muted" id="offline-detail">Check your internet connection. Daliz will open as soon as the workspace is reachable.</p>
+        <div class="row">
+          <button type="button" id="retry">Try again</button>
+          <button type="button" id="choose-other" class="secondary">Use a different workspace</button>
+        </div>
+      </section>
+
+      <section id="chooser" class="card" hidden>
+        <h2>Sign in to your workspace</h2>
+        <form id="workspace-form" novalidate>
+          <label for="workspace">Workspace address</label>
+          <input id="workspace" name="workspace" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="acme.daliz.com" required aria-describedby="workspace-error" />
+          <p id="workspace-error" class="error" role="alert"></p>
+          <button type="submit">Continue</button>
+        </form>
+        <div id="recent-wrap" hidden>
+          <h3>Recent workspaces</h3>
+          <ul id="recent" class="recent"></ul>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <button type="button" id="rollback" class="link" hidden>Restore previous version</button>
+        <span class="muted">Your data stays in your workspace. This app never stores passwords.</span>
+      </footer>
+    </main>
+    <script src="../js/neutralino.js"></script>
+    <script type="module" src="launcher.js"></script>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "@daliz/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "neu update",
+    "icons": "node scripts/make-icons.mjs",
+    "dev": "neu run -- --window-enable-inspector=true",
+    "build": "node scripts/make-icons.mjs && neu build --release",
+    "keygen": "node scripts/keygen.mjs",
+    "sign-update": "node scripts/sign-update.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "typecheck": "node --check resources/launcher/launcher.js && node --check resources/launcher/update.js"
+  },
+  "devDependencies": {
+    "@neutralinojs/neu": "^11.7.2",
+    "sharp": "^0.35.4"
+  }
+}

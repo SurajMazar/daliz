@@ -1,0 +1,73 @@
+# Local development infrastructure for Daliz.
+# Ports are shifted into the 5xxxx range so they don't collide with other local stacks.
+name: daliz
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-daliz_root}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-daliz_root_dev_only}
+      POSTGRES_DB: postgres
+      DALIZ_PLATFORM_DB: ${PLATFORM_DB_NAME:-daliz_platform}
+      DALIZ_PLATFORM_DB_USER: ${PLATFORM_DB_USER:-daliz_platform}
+      DALIZ_PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:-daliz_platform_dev_only}
+      DALIZ_PROVISIONER_USER: ${PROVISIONER_DB_USER:-daliz_provisioner}
+      DALIZ_PROVISIONER_PASSWORD: ${PROVISIONER_DB_PASSWORD:-daliz_provisioner_dev_only}
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD:-daliz_redis_dev_only}']
+    ports:
+      - '127.0.0.1:56379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-daliz_redis_dev_only}', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-daliz_minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-daliz_minio_dev_only}
+    ports:
+      - '127.0.0.1:59000:9000'
+      - '127.0.0.1:59001:9001'
+    volumes:
+      - minio-data:/data
+
+  # Real malware scanning (large image + signature download): podman compose --profile av up -d
+  # then set CLAMAV_HOST=127.0.0.1 in .env.
+  clamav:
+    image: docker.io/clamav/clamav:stable
+    profiles: ['av']
+    ports:
+      - '127.0.0.1:53310:3310'
+    volumes:
+      - clamav-data:/var/lib/clamav
+
+  mailpit:
+    image: docker.io/axllent/mailpit:latest
+    ports:
+      - '127.0.0.1:51025:1025'
+      - '127.0.0.1:58025:8025'
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  clamav-data:

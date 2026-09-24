@@ -1,0 +1,58 @@
+# Production-shaped stack for a single host. For real deployments use managed Postgres,
+# Redis and object storage, and inject secrets from a secret manager (see docs/DEPLOYMENT.md).
+#   docker compose -f compose.prod.yaml --env-file .env.production up -d
+name: daliz-prod
+
+x-app: &app
+  image: ${DALIZ_API_IMAGE:-daliz-api:latest}
+  env_file: .env.production
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+  restart: unless-stopped
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  # One-shot: migrates the platform DB and every tenant DB before the new version serves traffic.
+  migrate:
+    image: ${DALIZ_API_IMAGE:-daliz-api:latest}
+    env_file: .env.production
+    command: ['node', 'dist/cli/migrate.js']
+    read_only: true
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    restart: 'no'
+
+  api:
+    <<: *app
+    command: ['node', '--enable-source-maps', 'dist/main.js']
+    expose: ['3000']
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ['node', '--enable-source-maps', 'dist/worker.js']
+    deploy:
+      replicas: 2
+
+  web:
+    image: ${DALIZ_WEB_IMAGE:-daliz-web:latest}
+    environment:
+      API_UPSTREAM: http://api:3000
+      S3_PUBLIC_ORIGIN: ${S3_PUBLIC_ORIGIN:?set the public origin of object storage}
+    ports: ['8080:8080']
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /etc/nginx/conf.d]
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
